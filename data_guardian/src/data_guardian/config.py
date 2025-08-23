@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path  #* Support for working with file and directories base on OOP
 
-DEFAULT_APP_ROOT = Path(__file__).resolve.parents[2]  #* Project root
+DEFAULT_APP_ROOT = Path(__file__).resolve().parents[2]  #* Project root
 #* parents[0]: current directory
 #* parents[1]: parent directory
 #* parents[2]: grand-parent directory

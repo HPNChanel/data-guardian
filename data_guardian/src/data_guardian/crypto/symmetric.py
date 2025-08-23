@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-class Aesgcm:
+class AesGcm:
   """AES-256-GCM thin wrapper"""
   def __init__(self, key: bytes):
     assert len(key) == 32, "AES-256 requires 32-byte key"
