@@ -31,13 +31,13 @@ class RsaKeyPair:
     return self._pub.encrypt(
       session_key,
       padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                  algorithm=hashes.SHA256, label=None)
+                  algorithm=hashes.SHA256(), label=None)
     )
   
   def unwrap_key(self, wrapped: bytes) -> bytes:
     return self._priv.decrypt(
       wrapped,
       padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                  algorithm=hashes.SHA256, label=None)
+                  algorithm=hashes.SHA256(), label=None)
     )
   

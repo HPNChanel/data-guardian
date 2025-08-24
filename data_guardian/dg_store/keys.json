@@ -1,0 +1,16 @@
+{
+  "keys": [
+    {
+      "kid": "rsa_01b298b58e",
+      "alg": "RSA",
+      "label": "laptop",
+      "created_at": 1756048404
+    },
+    {
+      "kid": "ed_1b58ef4657",
+      "alg": "ED25519",
+      "label": "signing",
+      "created_at": 1756048506
+    }
+  ]
+}

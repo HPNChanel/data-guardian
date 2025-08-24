@@ -10,6 +10,7 @@ from ..exceptions import KeyNotFound, InvalidPassphrase
 from .paths import PathResolver
 from ..crypto.kdf import ScryptKdf
 from ..config import CONFIG
+import base64
 
 class KeyStore:
   """Persist public / private keys and an index file"""
@@ -32,25 +33,30 @@ class KeyStore:
   def register(self, kid: str, label: str, alg: str) -> None:
     idx = self._load_index()
     idx.setdefault("keys", []).append({
-      "kid": kid, "label": label, "created_at": int(time.time())
+      "kid": kid, "alg": alg, "label": label, "created_at": int(time.time())
     })
     self._save_index(idx)
   
   #* -------- Save / Load --------
   @staticmethod
   def _b64e(b: bytes) -> str:
-    import base64
     return base64.urlsafe_b64encode(b).decode().rstrip("=")
   
   @staticmethod
+  def _b64d(s: str) -> bytes:
+    """String with no padding"""
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+  
   def write_keypair(self, kid: str, pub_pem: bytes, priv_raw_pem: bytes, passphrase_prompt: str) -> None:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    import os
+    
     pw = getpass(passphrase_prompt).strip()
     salt = ScryptKdf.random_salt()
     key = self.kdf.derive(pw, salt)
-    
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     aes = AESGCM(key)
-    nonce = AESGCM.generate_key(bit_length=96)[:12]   #* 12 bytes nonce from key slice
+    nonce = os.urandom(12)   #* 12 bytes nonce
     ct = aes.encrypt(nonce, priv_raw_pem, None)
     blob = {"v": 1, "alg": "AES-256-GCM", "salt": self._b64e(salt), "nonce": self._b64e(nonce), "ct": self._b64e(ct)}
     
