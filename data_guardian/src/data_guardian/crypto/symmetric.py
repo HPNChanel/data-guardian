@@ -16,5 +16,4 @@ def encrypt(key: bytes, plaintext: bytes, aad: bytes = b"")-> tuple[bytes, bytes
   
 def decrypt(key: bytes, nonce: bytes, ciphertext: bytes, aad: bytes = b"") -> bytes:
   aesgcm = AESGCM(key)
-  return aesgcm.decrypt(nonce, ciphertext, aad)
-  
+  return aesgcm.decrypt(nonce, ciphertext, aad) 
