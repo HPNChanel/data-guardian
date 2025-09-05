@@ -6,6 +6,7 @@ from ..storage.keystore import KeyStore
 from ..models import KeyInfo
 from ..crypto.asymmetric import RsaKeyPair
 from ..crypto.signer import Ed25519KeyPair
+from ..crypto.ecc import X25519KeyPair
 
 class KeyManager:
     """Create & list keys via KeyStore"""
@@ -30,6 +31,14 @@ class KeyManager:
                                 "Set passphrase to protect your Ed25519 private key: ")
         self.store.register(kid, label, "ED25519")
         return kid
+
+    def create_x25519(self, label: str) -> str:
+        kp = X25519KeyPair.generate()
+        kid = self.store.make_kid("x25519", kp.public_pem())
+        self.store.write_keypair(kid, kp.public_pem(), kp.private_pem_pkcs8(),
+                                 "Set passphrase to protect your X25519 private key: ")
+        self.store.register(kid, label, "X25519")
+        return kid
     
     #* Loaders
     def load_rsa_public(self, kid: str):
@@ -43,4 +52,11 @@ class KeyManager:
     
     def load_ed_private(self, kid: str):
         return self.store.load_private_key(kid, "sign file")
+
+    def load_x25519_public(self, kid: str):
+        pem = self.store.load_public_key(kid)
+        return serialization.load_pem_public_key(pem)
+
+    def load_x25519_private(self, kid: str):
+        return self.store.load_private_key(kid, "unwrap CEK (X25519)")
     

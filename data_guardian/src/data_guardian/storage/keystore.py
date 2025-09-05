@@ -16,6 +16,7 @@ from ..config import CONFIG
 from ..storage.paths import PathResolver
 from ..models import KeyInfo
 from ..utils import b64e, b64d
+from ..policy.policy import check_passphrase_strength
 
 
 class KeyStore:
@@ -41,7 +42,17 @@ class KeyStore:
     # ----- Public API used by KeyManager -----
     def list_keys(self) -> List[KeyInfo]:
         data = self._load_index()
-        return [KeyInfo(**k) for k in data.get("keys", [])]
+        items = []
+        for k in data.get("keys", []):
+            # Backward compatibility: ensure fields exist
+            k.setdefault("label", "")
+            k.setdefault("created_at", int(time.time()))
+            k.setdefault("last_used", None)
+            k.setdefault("expiry", None)
+            items.append(KeyInfo(
+                kid=k["kid"], alg=k["alg"], label=k.get("label", ""), created_at=k["created_at"]
+            ))
+        return items
 
     def make_kid(self, kind: str, public_pem: bytes) -> str:
         prefix = {"rsa": "rsa", "ed": "ed", "ed25519": "ed"}.get(kind, kind)
@@ -64,6 +75,9 @@ class KeyStore:
         if pw1 != pw2 or not pw1:
             raise ValueError("Passphrases do not match or empty")
         passphrase = pw1.encode("utf-8")
+
+        # Validate passphrase strength
+        check_passphrase_strength(pw1)
 
         # Scrypt KDF (configurable)
         kdf_cfg = CONFIG.kdf
@@ -93,9 +107,44 @@ class KeyStore:
         created_at = int(time.time())
         # upsert by kid
         keys = [k for k in keys if k.get("kid") != kid]
-        keys.append({"kid": kid, "alg": alg, "label": label, "created_at": created_at})
+        keys.append({
+            "kid": kid,
+            "alg": alg,
+            "label": label,
+            "created_at": created_at,
+            "last_used": None,
+            "expiry": None,
+        })
         idx["keys"] = keys
         self._save_index(idx)
+
+    def set_expiry(self, kid: str, expiry: int | None) -> None:
+        idx = self._load_index()
+        updated = False
+        for k in idx.get("keys", []):
+            if k.get("kid") == kid:
+                k["expiry"] = int(expiry) if expiry else None
+                updated = True
+                break
+        if updated:
+            self._save_index(idx)
+
+    def mark_used(self, kid: str) -> None:
+        idx = self._load_index()
+        now = int(time.time())
+        for k in idx.get("keys", []):
+            if k.get("kid") == kid:
+                k["last_used"] = now
+                break
+        self._save_index(idx)
+
+    def clean_expired(self) -> int:
+        idx = self._load_index()
+        now = int(time.time())
+        before = len(idx.get("keys", []))
+        idx["keys"] = [k for k in idx.get("keys", []) if not (k.get("expiry") and k["expiry"] <= now)]
+        self._save_index(idx)
+        return before - len(idx["keys"])
 
     def load_public_key(self, kid: str) -> bytes:
         path = self.paths.keys / f"{kid}_pub.pem"

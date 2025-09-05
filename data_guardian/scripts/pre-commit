@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[Data Guardian] Running selftest before commit..."
+python -c "import sys; from data_guardian.cli import selftest; selftest(); sys.exit(0)" >/dev/null 2>&1 || {
+  echo "Selftest failed. Aborting commit." >&2
+  exit 1
+}
+echo "Selftest OK."
+

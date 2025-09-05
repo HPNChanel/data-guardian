@@ -1,5 +1,6 @@
 import os
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from typing import Literal
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 
 AES_KEY_SIZE = 32  # 256-bit
 NONCE_SIZE = 12
@@ -41,3 +42,53 @@ class AesGcm:
 
     def decrypt(self, nonce: bytes, ct: bytes, aad: bytes | None = None) -> bytes:
         return self._aes.decrypt(nonce, ct, aad)
+
+
+class ChaCha20:
+    """ChaCha20-Poly1305 AEAD wrapper with API parity to AesGcm"""
+
+    KEY_SIZE = 32
+    NONCE_SIZE = 12
+
+    @staticmethod
+    def gen_key() -> bytes:
+        return os.urandom(ChaCha20.KEY_SIZE)
+
+    @staticmethod
+    def gen_nonce() -> bytes:
+        return os.urandom(ChaCha20.NONCE_SIZE)
+
+    def __init__(self, key: bytes):
+        self._key = key
+        self._aead = ChaCha20Poly1305(key)
+
+    def encrypt(self, nonce: bytes, pt: bytes, aad: bytes | None = None) -> bytes:
+        return self._aead.encrypt(nonce, pt, aad)
+
+    def decrypt(self, nonce: bytes, ct: bytes, aad: bytes | None = None) -> bytes:
+        return self._aead.decrypt(nonce, ct, aad)
+
+
+def aead_factory(name: Literal["AESGCM", "CHACHA20"], key: bytes):
+    name_up = name.upper()
+    if name_up == "AESGCM":
+        return AesGcm(key)
+    if name_up == "CHACHA20":
+        return ChaCha20(key)
+    raise ValueError(f"Unsupported AEAD: {name}")
+
+def gen_key_for(name: Literal["AESGCM", "CHACHA20"]) -> bytes:
+    name_up = name.upper()
+    if name_up == "AESGCM":
+        return AesGcm.gen_key()
+    if name_up == "CHACHA20":
+        return ChaCha20.gen_key()
+    raise ValueError(f"Unsupported AEAD: {name}")
+
+def gen_nonce_for(name: Literal["AESGCM", "CHACHA20"]) -> bytes:
+    name_up = name.upper()
+    if name_up == "AESGCM":
+        return AesGcm.gen_nonce()
+    if name_up == "CHACHA20":
+        return ChaCha20.gen_nonce()
+    raise ValueError(f"Unsupported AEAD: {name}")

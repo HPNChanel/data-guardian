@@ -20,8 +20,23 @@ class KdfConfig:
   
 
 @dataclass(frozen=True)
+class CryptoDefaults:
+  aead: str = "AESGCM"  # or CHACHA20
+  rsa_oaep_hash: str = "SHA256"  # SHA1 | SHA256 | SHA512
+
+
+@dataclass(frozen=True)
+class AuditConfig:
+  json_stdout: bool = True
+  syslog_host: str | None = None
+  syslog_port: int = 514
+
+
+@dataclass(frozen=True)
 class AppConfig:
   store_dir: Path = DEFAULT_STORE
   kdf: KdfConfig = KdfConfig()
+  crypto: CryptoDefaults = CryptoDefaults()
+  audit: AuditConfig = AuditConfig()
 
 CONFIG = AppConfig()

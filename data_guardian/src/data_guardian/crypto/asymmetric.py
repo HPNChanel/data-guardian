@@ -4,6 +4,7 @@ This module exposes both functional helpers (legacy) and thin classes used by
 HybridEncryptor/HybridDecryptor via KeyManager.
 """
 
+from typing import Literal
 from cryptography.hazmat.primitives.asymmetric import rsa, padding, ed25519
 from cryptography.hazmat.primitives import serialization, hashes
 
@@ -36,23 +37,36 @@ def rsa_load_private(pem: bytes, passphrase: bytes | None = None) -> rsa.RSAPriv
     return serialization.load_pem_private_key(pem, password=passphrase)
 
 
-def rsa_encrypt(pub, data: bytes) -> bytes:
+def _hash_alg(name: Literal["SHA1", "SHA256", "SHA512"]):
+    n = name.upper()
+    if n == "SHA1":
+        return hashes.SHA1()
+    if n == "SHA256":
+        return hashes.SHA256()
+    if n == "SHA512":
+        return hashes.SHA512()
+    raise ValueError(f"Unsupported OAEP hash: {name}")
+
+
+def rsa_encrypt(pub, data: bytes, oaep_hash: Literal["SHA1", "SHA256", "SHA512"] = "SHA256") -> bytes:
+    h = _hash_alg(oaep_hash)
     return pub.encrypt(
         data,
         padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
+            mgf=padding.MGF1(algorithm=h),
+            algorithm=h,
             label=None,
         ),
     )
 
 
-def rsa_decrypt(priv, ct: bytes) -> bytes:
+def rsa_decrypt(priv, ct: bytes, oaep_hash: Literal["SHA1", "SHA256", "SHA512"] = "SHA256") -> bytes:
+    h = _hash_alg(oaep_hash)
     return priv.decrypt(
         ct,
         padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
+            mgf=padding.MGF1(algorithm=h),
+            algorithm=h,
             label=None,
         ),
     )
@@ -130,22 +144,24 @@ class RsaKeyPair:
         )
 
     # RSA-OAEP key wrap/unwrap
-    def wrap_key(self, data: bytes) -> bytes:
+    def wrap_key(self, data: bytes, oaep_hash: Literal["SHA1", "SHA256", "SHA512"] = "SHA256") -> bytes:
+        h = _hash_alg(oaep_hash)
         return self._pub.encrypt(
             data,
             padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
+                mgf=padding.MGF1(algorithm=h),
+                algorithm=h,
                 label=None,
             ),
         )
 
-    def unwrap_key(self, ct: bytes) -> bytes:
+    def unwrap_key(self, ct: bytes, oaep_hash: Literal["SHA1", "SHA256", "SHA512"] = "SHA256") -> bytes:
+        h = _hash_alg(oaep_hash)
         return self._priv.decrypt(
             ct,
             padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
+                mgf=padding.MGF1(algorithm=h),
+                algorithm=h,
                 label=None,
             ),
         )
