@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Optional
-from ..storage.keystore import KeyStore
 
 @dataclass
 class OperationContext:
@@ -25,6 +24,8 @@ def enforce(ctx: OperationContext) -> None:
 
     # Enforce key usage policies for operations involving keys
     if ctx.actor:
+        # Lazy import to avoid circular dependency with keystore
+        from ..storage.keystore import KeyStore
         ks = KeyStore()
         data = ks._load_index()
         for k in data.get("keys", []):

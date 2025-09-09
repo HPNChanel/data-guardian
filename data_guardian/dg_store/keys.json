@@ -11,6 +11,22 @@
       "alg": "ED25519",
       "label": "signing",
       "created_at": 1756048506
+    },
+    {
+      "kid": "rsa_5905bd9a2c",
+      "alg": "RSA",
+      "label": "hpnchanel",
+      "created_at": 1757435053,
+      "last_used": null,
+      "expiry": null
+    },
+    {
+      "kid": "ed_d885087550",
+      "alg": "ED25519",
+      "label": "hpn",
+      "created_at": 1757435659,
+      "last_used": null,
+      "expiry": null
     }
   ]
 }
