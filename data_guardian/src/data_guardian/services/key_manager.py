@@ -36,7 +36,7 @@ class KeyManager:
         kp = X25519KeyPair.generate()
         kid = self.store.make_kid("x25519", kp.public_pem())
         self.store.write_keypair(kid, kp.public_pem(), kp.private_pem_pkcs8(),
-                                 "Set passphrase to protect your X25519 private key: ")
+                                "Set passphrase to protect your X25519 private key: ")
         self.store.register(kid, label, "X25519")
         return kid
     
