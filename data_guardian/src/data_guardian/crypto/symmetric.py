@@ -2,9 +2,9 @@ import os
 from typing import Literal
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 
-AES_KEY_SIZE = 32  # 256-bit
+AES_KEY_SIZE = 32  #* 256-bit
 NONCE_SIZE = 12
-
+MAX_CHUNKS = 2**32
 
 # Functional helpers (legacy)
 def gen_key() -> bytes:
@@ -92,3 +92,16 @@ def gen_nonce_for(name: Literal["AESGCM", "CHACHA20"]) -> bytes:
     if name_up == "CHACHA20":
         return ChaCha20.gen_nonce()
     raise ValueError(f"Unsupported AEAD: {name}")
+
+
+def derive_chunk_nonce(base_nonce: bytes, chunk_index: int) -> bytes:
+    """Derive a deterministic nonce for the given chunk index"""
+    if len(base_nonce) != NONCE_SIZE:
+        raise ValueError("Expected a 96-bit base nonce")
+    if not 0 <= chunk_index < MAX_CHUNKS:
+        raise ValueError("Chunk index out of range")
+    
+    prefix = base_nonce[:-4]
+    counter = int.from_bytes(base_nonce[-4:], "big")
+    new_counter = (counter + chunk_index) % MAX_CHUNKS
+    return prefix + new_counter.to_bytes(4, "big")
