@@ -2,11 +2,14 @@
 from __future__ import annotations
 from typing import List
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
+
 from ..storage.keystore import KeyStore
 from ..models import KeyInfo
 from ..crypto.asymmetric import RsaKeyPair
 from ..crypto.signer import Ed25519KeyPair
 from ..crypto.ecc import X25519KeyPair
+from ..utils.errors import KeyNotFound
 
 class KeyManager:
     """Create & list keys via KeyStore"""
@@ -41,18 +44,26 @@ class KeyManager:
         return kid
     
     #* Loaders
-    def load_rsa_public(self, kid: str):
-        return self.store.load_public_key(kid)
+    def load_rsa_public(self, kid: str) -> rsa.RSAPublicKey:
+        pem = self.store.load_public_key(kid)
+        pub = serialization.load_pem_public_key(pem)
+        if not isinstance(pub, rsa.RSAPublicKey):
+            raise KeyNotFound(f"Key {kid} is not an RSA public key")
+        return pub
     
     def load_rsa_private(self, kid: str):
         return self.store.load_private_key(kid, "decrypt unwrap session-key")
     
-    def load_ed_public(self, kid: str):
-        return self.store.load_public_key(kid)
-    
     def load_ed_private(self, kid: str):
         return self.store.load_private_key(kid, "sign file")
 
+    def load_ed_public(self, kid: str):
+        pem = self.store.load_public_key(kid)
+        pub = serialization.load_pem_public_key(pem)
+        if not isinstance(pub, ed25519.Ed25519PublicKey):
+            raise KeyNotFound(f"Key {kid} is not an Ed25519 public key")
+        return pub
+    
     def load_x25519_public(self, kid: str):
         pem = self.store.load_public_key(kid)
         return serialization.load_pem_public_key(pem)

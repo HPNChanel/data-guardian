@@ -10,6 +10,7 @@ from typing import Optional, List
 
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import serialization
 
 from ..config import CONFIG
@@ -17,6 +18,7 @@ from ..storage.paths import PathResolver
 from ..models import KeyInfo
 from ..utils import b64e, b64d
 from ..policy.policy import check_passphrase_strength
+from ..utils.errors import InvalidPassphrase
 
 
 class KeyStore:
@@ -166,9 +168,10 @@ class KeyStore:
         kdf = Scrypt(salt=salt, length=32, n=kdf_cfg.n, r=kdf_cfg.r, p=kdf_cfg.p)
         key = kdf.derive(pw.encode("utf-8"))
         aes = AESGCM(key)
-        pem = aes.decrypt(nonce, ct, None)
-        # Load PEM into key object
-        return serialization.load_pem_private_key(pem, password=None)
+        try:
+            pem = aes.decrypt(nonce, ct, None)
+        except InvalidTag as exc:
+            raise InvalidPassphrase(f"Incorrect passphrase for {kid}") from exc
 
     def load_private_key_with_passphrase(self, kid: str, passphrase: bytes):
         """Server-friendly variant that does not prompt."""
@@ -183,5 +186,8 @@ class KeyStore:
         kdf = Scrypt(salt=salt, length=32, n=kdf_cfg.n, r=kdf_cfg.r, p=kdf_cfg.p)
         key = kdf.derive(passphrase)
         aes = AESGCM(key)
-        pem = aes.decrypt(nonce, ct, None)
+        try:
+            pem = aes.decrypt(nonce, ct, None)
+        except InvalidTag as exc:
+            raise InvalidPassphrase(f"Incorrect passphrase for {kid}") from exc
         return serialization.load_pem_private_key(pem, password=None)
