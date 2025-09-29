@@ -128,12 +128,14 @@ async def decrypt_api(file: UploadFile, req: DecryptRequest, _user=Depends(auth_
             for r in header.get("recipients", []):
                 kid = r["kid"]
                 try:
-                    priv = ks.load_private_key_with_passphrase(kid, req.passphrase.encode())
-                    wrapped = b64d(r["ek"]) if "ek" in r else b64d(r["ek_b64"])
-                    cek = RsaKeyPair(private=priv).unwrap_key(wrapped)
-                    break
-                except Exception:
-                    continue
+                    # Avoid broad exception catch to prevent hiding bugs
+                    priv = ks.load_private_key_with_passphrase(kid, req.passphrase.encode()) # Can raise KeyNotFoundError, ValueError
+                    wrapped = b64d(r.get("ek") or r.get("ek_b64"))
+                    unwrapped_cek = RsaKeyPair(private=priv).unwrap_key(wrapped)
+                    if unwrapped_cek: # Check if unwrap was successful
+                        cek = unwrapped_cek
+                except (KeyError, ValueError): # Catch specific, expected errors
+                    pass # Try next key
         elif enc == "X25519-KEM":
             for r in header.get("recipients", []):
                 kid = r["kid"]
@@ -141,14 +143,15 @@ async def decrypt_api(file: UploadFile, req: DecryptRequest, _user=Depends(auth_
                     priv = ks.load_private_key_with_passphrase(kid, req.passphrase.encode())
                     wrap = X25519EphemeralWrap(
                         epk_pem=b64d(r["epk_pem_b64"]),
-                        ct=b64d(r["ek"]) if "ek" in r else b64d(r["ek_b64"]),
-                        nonce=b64d(r.get("nonce") or r.get("nonce_b64")),
+                        ct=b64d(r.get("ek") or r.get("ek_b64")),
+                        nonce=b64d(r.get("nonce_b64")),
                         aead=aead,
                     )
-                    cek = X25519KeyPair.unwrap_cek(priv, wrap)
-                    break
-                except Exception:
-                    continue
+                    unwrapped_cek = X25519KeyPair.unwrap_cek(priv, wrap)
+                    if unwrapped_cek:
+                        cek = unwrapped_cek
+                except (KeyError, ValueError):
+                    pass
         else:
             raise HTTPException(400, f"Unsupported enc: {enc}")
 
@@ -194,8 +197,8 @@ async def verify_api(file: UploadFile, req: VerifyRequest, _user=Depends(auth_de
     try:
         assert isinstance(pub, ed25519.Ed25519PublicKey)
         pub.verify(sig, data)
-        return {"valid": True}
-    except Exception:
+        return {"valid": True, "signer": req.signer}
+    except Exception: # Includes InvalidSignature
         return {"valid": False}
 
 

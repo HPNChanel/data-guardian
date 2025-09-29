@@ -172,6 +172,7 @@ class KeyStore:
             pem = aes.decrypt(nonce, ct, None)
         except InvalidTag as exc:
             raise InvalidPassphrase(f"Incorrect passphrase for {kid}") from exc
+        return serialization.load_pem_private_key(pem, password=None)
 
     def load_private_key_with_passphrase(self, kid: str, passphrase: bytes):
         """Server-friendly variant that does not prompt."""

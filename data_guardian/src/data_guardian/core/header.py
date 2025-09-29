@@ -66,7 +66,6 @@ class Header(BaseModel):
                 "magic": self.magic,
                 "version": self.version,
                 "algorithm_suite": self.algorithm_suite,
-                "nonce_policy": self.nonce_policy,
                 "created_at": self.created_at.isoformat(),
                 "policy_id": self.policy_id or "",
             },

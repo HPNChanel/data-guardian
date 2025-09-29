@@ -26,7 +26,9 @@ from ..utils.errors import InvalidHeader
 class HybridEncryptor:
     """Hybrid DEM: AEAD content with CEK; KEM/PK wrap CEK (RSA-OAEP or X25519-KEM)."""
     def __init__(self, km: KeyManager | None = None):
-        self.km = km or KeyManager()
+        manager = km or KeyManager()
+        self.km = manager  #* Keep public one
+        self._km = manager
 
     def encrypt_file(
         self,

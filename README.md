@@ -5,12 +5,14 @@ Data Guardian is a hybrid crypto toolkit: AES-GCM or ChaCha20-Poly1305 for conte
 Supported Python: 3.10+
 
 Quick Start
+
 - Create venv: `python -m venv venv` and activate (`venv\Scripts\Activate.ps1` on Windows).
 - Install deps: `pip install -r data_guardian/requirements.txt`.
 - Optional console script: `pip install -e data_guardian` to enable `data-guardian` command.
 - Help: `data-guardian --help` or `python -m data_guardian.cli --help`.
 
 CLI Highlights
+
 - List keys: `data-guardian list-keys`
 - Generate keys: `data-guardian keygen-rsa|keygen-ed25519|keygen-x25519 --label "name"`
 - Encrypt: `data-guardian encrypt -i file -o file.dgd --kid rsa_...`
@@ -20,21 +22,27 @@ CLI Highlights
 - Stream modes: `encrypt-stream` / `decrypt-stream`
 
 Recipients and Policy
+
 - Pass `--kid group:ENG` or `--kid role:admin`; the CLI expands them using `data_guardian/policy/recipients.py` and an optional policy file at `<store>/meta/recipients.json`.
 
 Keystore Layout
+
 - Default store under `data_guardian/dg_store/` (configurable). Files: `keys.json`, `keys/<kid>_pub.pem`, and encrypted `keys/<kid>_priv.enc`.
 
 API Server (optional)
+
 - Run: `uvicorn data_guardian.api.main:app --reload`
 - Auth: Bearer JWT (HS256). Set `DG_JWT_SECRET` for local testing.
 - Endpoints: `POST /encrypt`, `POST /decrypt` using multipart uploads.
 
 Development
+
 - Health checks: `data-guardian selftest` and `data-guardian doctor`.
 
 Testing
+
 - Minimal placeholder tests under `data_guardian/tests/`. Run with `pytest -q` if installed.
 
 License
+
 - MIT
