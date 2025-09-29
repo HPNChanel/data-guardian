@@ -1,0 +1,10 @@
+﻿network:
+  allow: false
+logging:
+  level: INFO
+ipc:
+  transport: uds
+  socket_path: /tmp/dg_core.sock
+  named_pipe: \\.\pipe\dg_core
+  tcp_host: 127.0.0.1
+  tcp_port: 8765

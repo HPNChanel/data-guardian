@@ -1,0 +1,40 @@
+﻿version: 1
+name: default
+description: Default DG Core policy
+defaults:
+  action: MASK
+  preserve_length: false
+  salt: null
+rules:
+  - name: Redact Secrets
+    when: detector.startswith("secrets.")
+    action: REDACT
+    priority: 10
+    preserve_length: false
+  - name: Hash Credit Cards
+    when: detector == "pii.credit_card"
+    action: HASH
+    priority: 20
+    preserve_length: true
+    salt: deadbeef
+  - name: Mask PII
+    when: detector.startswith("pii.")
+    action: MASK
+    priority: 30
+    preserve_length: true
+  - name: Mask Config Tokens
+    when: detector.startswith("config.")
+    action: MASK
+    priority: 40
+    preserve_length: false
+allowlist:
+  email_domains:
+    - trusted.example
+    - internal.local
+    - example.com
+detectors:
+  include:
+    - pii.*
+    - secrets.*
+    - config.*
+  exclude: []

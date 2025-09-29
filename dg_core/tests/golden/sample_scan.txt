@@ -1,0 +1,4 @@
+﻿Order ID: 12345
+Customer: alice@example.com
+Card: 4111 1111 1111 1111
+Token: AKIA1234567890ABCD12

@@ -1,0 +1,5 @@
+﻿[
+  {"detector": "pii.email", "value": "alice@example.com"},
+  {"detector": "pii.credit_card", "value": "4111111111111111"},
+  {"detector": "secrets.aws_access_key", "value": "AKIA1234567890ABCD12"}
+]
