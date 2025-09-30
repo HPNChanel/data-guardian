@@ -1,0 +1,76 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Data Guardian Desktop",
+  "version": "0.1.0",
+  "identifier": "com.dataguardian.desktop",
+  "build": {
+    "beforeBuildCommand": "npm run prebuild:dg",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "title": "Data Guardian",
+        "width": 1400,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "assetProtocol": {
+        "scope": ["*"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "appimage", "deb", "msi"],
+    "resources": ["resources/**"],
+    "macOS": {
+      "minimumSystemVersion": "11",
+      "signingIdentity": null,
+      "entitlements": null,
+      "exceptionDomain": "localhost",
+      "license": null,
+      "universal": true
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libgtk-3-0", "libgdk-pixbuf2.0-0", "libayatana-appindicator3-1"]
+      }
+    },
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": false
+    },
+    "shell": {
+      "commands": {
+        "system-shell": {
+          "cmd": {
+            "linux": "/bin/bash",
+            "macos": "/bin/zsh",
+            "windows": "powershell.exe"
+          },
+          "args": {
+            "linux": ["-l"],
+            "macos": ["-l"],
+            "windows": ["-NoLogo"]
+          }
+        }
+      }
+    },
+    "store": {}
+  }
+}
