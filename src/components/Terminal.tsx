@@ -1,8 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Command } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
-import { appDir } from "@tauri-apps/api/path";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { homeDir } from "@tauri-apps/api/path";
 import { FitAddon } from "xterm-addon-fit";
 import { Terminal as XTerm } from "xterm";
 
@@ -54,7 +53,7 @@ const isWindows = navigator.userAgent.toLowerCase().includes("windows");
 
 async function createSystemShell() {
   const command = await Command.create("system-shell", [], {
-    cwd: await appDir(),
+    cwd: await homeDir(),
   });
   return command;
 }
