@@ -1,0 +1,108 @@
+name: Desktop CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+    paths:
+      - "desktop_app/**"
+      - "dg_core/**"
+      - "data_guardian/**"
+      - "scripts/build_dg_core.mjs"
+      - "docs/**"
+      - "packaging/**"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    paths:
+      - "desktop_app/**"
+      - "dg_core/**"
+      - "data_guardian/**"
+      - "scripts/build_dg_core.mjs"
+      - "docs/**"
+      - "packaging/**"
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-13, windows-latest]
+    env:
+      PYTHON_VERSION: "3.11"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: desktop_app/ui/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('dg_core/pyproject.toml', 'data_guardian/pyproject.toml', 'data_guardian/requirements.txt') }}
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            desktop_app/tauri/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('desktop_app/tauri/src-tauri/Cargo.toml') }}
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e dg_core -e data_guardian
+
+      - name: Install UI dependencies
+        run: npm install
+        working-directory: desktop_app/ui
+
+      - name: Build UI assets
+        run: npm run build
+        working-directory: desktop_app/ui
+
+      - name: Package DG Core runtime
+        run: node scripts/build_dg_core.mjs
+
+      - name: Run Python tests
+        run: pytest dg_core/tests data_guardian/tests
+
+      - name: Run Rust tests
+        run: cargo test
+        working-directory: desktop_app/tauri/src-tauri
+
+      - name: Desktop smoke tests
+        run: node --test tests/desktop/smoke.test.mjs
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Build desktop bundles
+        run: cargo tauri build
+        working-directory: desktop_app/tauri/src-tauri
+
+      - name: Upload artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            desktop_app/tauri/src-tauri/target/release/bundle/**/*.msi
+            desktop_app/tauri/src-tauri/target/release/bundle/**/*.dmg
+            desktop_app/tauri/src-tauri/target/release/bundle/**/*.AppImage
+            desktop_app/tauri/src-tauri/target/release/bundle/**/*.deb
+          if-no-files-found: warn

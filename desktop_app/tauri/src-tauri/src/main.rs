@@ -11,6 +11,17 @@ use uuid::Uuid;
 
 type SharedClient = Arc<Mutex<Option<Arc<BridgeClient>>>>;
 
+#[cfg(feature = "auto-update")]
+fn configure_updater(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    let _ = tauri::updater::builder();
+    builder
+}
+
+#[cfg(not(feature = "auto-update"))]
+fn configure_updater(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder
+}
+
 #[tauri::command]
 async fn dg_rpc(
     state: tauri::State<'_, AppState>,
@@ -180,9 +191,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         process: process_manager.clone(),
     };
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_store::Builder::default().build());
+    let builder = configure_updater(builder);
+
+    builder
         .setup(move |app| {
             let state = app_state.clone();
             app.manage(state.clone());

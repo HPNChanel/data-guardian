@@ -4,7 +4,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const RESOURCES_DIR = path.join(ROOT, "resources", "dg_runtime");
+const RESOURCES_DIR = path.join(
+  ROOT,
+  "desktop_app",
+  "tauri",
+  "resources",
+  "dg_runtime"
+);
 const BIN_DIR = path.join(RESOURCES_DIR, "bin");
 const LIB_DIR = path.join(RESOURCES_DIR, "lib");
 const VERSION = process.env.npm_package_version ?? "0.0.0";
@@ -31,7 +37,7 @@ async function copyTree(from, to) {
 }
 
 async function writeWrapperScripts() {
-  const unixScript = `#!/usr/bin/env python3\nimport runpy\nimport sys\n\nif __name__ == "__main__":\n    runpy.run_module("dg_core.cli.main", run_name="__main__")\n`;
+  const unixScript = `#!/usr/bin/env bash\nset -euo pipefail\nexec python3 -m dg_core.cli.main "$@"\n`;
   const windowsScript = `@echo off\r\npython -m dg_core.cli.main %*\r\n`;
 
   const unixPath = path.join(BIN_DIR, "dg");
