@@ -71,6 +71,13 @@ vite.config.*
 !desktop_app/ui/package.json
 !desktop_app/ui/package-lock.json
 !desktop_app/ui/vite.config.ts
+!ui/desktop/package.json
+!ui/desktop/package-lock.json
+!ui/desktop/vite.config.ts
+!ui/desktop/tsconfig.json
+!ui/desktop/tsconfig.node.json
+!ui/desktop/tailwind.config.js
+!ui/desktop/postcss.config.js
 
 # Environment and secrets
 .env
@@ -149,3 +156,4 @@ logs/
 *.mkv
 *.iso
 *.dmg
+ui/desktop/src-tauri/icons/icon.png
