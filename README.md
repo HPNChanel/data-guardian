@@ -1,6 +1,6 @@
 # Data Guardian
 
-Data Guardian is a hybrid crypto toolkit: AES-GCM or ChaCha20-Poly1305 for content, with RSA-OAEP or X25519 KEM for key wrapping, and Ed25519 for signatures. It provides a Typer-based CLI and an optional FastAPI service.
+Data Guardian is a hybrid crypto toolkit: AES-GCM or ChaCha20-Poly1305 for content, with RSA-OAEP or X25519 KEM for key wrapping, and Ed25519 for signatures. It provides a Typer-based CLI, an optional FastAPI service, and a Tauri-based desktop shell that embeds DG Core locally.
 
 Supported Python: 3.10+
 
@@ -29,11 +29,12 @@ Keystore Layout
 
 - Default store under `data_guardian/dg_store/` (configurable). Files: `keys.json`, `keys/<kid>_pub.pem`, and encrypted `keys/<kid>_priv.enc`.
 
-API Server (optional)
+Desktop App
 
-- Run: `uvicorn data_guardian.api.main:app --reload`
-- Auth: Bearer JWT (HS256). Set `DG_JWT_SECRET` for local testing.
-- Endpoints: `POST /encrypt`, `POST /decrypt` using multipart uploads.
+- Build UI: `npm --prefix desktop_app/ui install` then `npm --prefix desktop_app/ui run build`.
+- Package Python runtime: `node scripts/build_dg_core.mjs`.
+- Launch shell: `cargo tauri dev --manifest-path desktop_app/tauri/src-tauri/Cargo.toml`.
+- IPC is restricted to Unix sockets (macOS/Linux) or a Windows named pipe. See `docs/ipc.md` for full details.
 
 Development
 
@@ -41,7 +42,9 @@ Development
 
 Testing
 
-- Minimal placeholder tests under `data_guardian/tests/`. Run with `pytest -q` if installed.
+- Python: `pytest dg_core/tests data_guardian/tests`.
+- Rust: `cargo test --manifest-path desktop_app/tauri/src-tauri/Cargo.toml`.
+- Desktop smoke: `node --test tests/desktop/smoke.test.mjs`.
 
 License
 

@@ -3,6 +3,11 @@ name = "data_guardian_desktop"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+auto-update = []
+debug-tcp-fallback = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -18,14 +23,14 @@ serde_with = "3.9"
 thiserror = "1.0"
 tauri = { version = "2", features = ["default"] }
 tauri-plugin-shell = "2"
-tauri-plugin-store = { version = "2", features = ["default"] }
+tauri-plugin-store = { version = "2" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time", "net", "io-util", "process"] }
 tokio-util = "0.7"
 tokio-stream = "0.1"
 uuid = { version = "1", features = ["v4", "serde"] }
 
 [target.'cfg(windows)'.dependencies]
-tokio-named-pipes = "0.2"
+tokio-named-pipes = "0.1"
 
 [target.'cfg(not(windows))'.dependencies]
 tempfile = "3.10"

@@ -33,14 +33,33 @@ impl Default for ProcessConfig {
         #[cfg(not(target_os = "windows"))]
         let socket_endpoint = Endpoint::Unix(ipc_dir.join("dg-core.sock"));
 
-        let tcp_fallback = Some(Endpoint::Tcp(
-            "127.0.0.1:7878"
-                .parse()
-                .expect("valid tcp fallback address"),
-        ));
+        let tcp_fallback = {
+            #[cfg(feature = "debug-tcp-fallback")]
+            {
+                Some(
+                    Endpoint::Tcp(
+                        "127.0.0.1:7878"
+                            .parse()
+                            .expect("valid tcp fallback address"),
+                    ),
+                )
+            }
+
+            #[cfg(not(feature = "debug-tcp-fallback"))]
+            {
+                None
+            }
+        };
+
+        #[cfg(target_os = "windows")]
+        let launcher = "dg.cmd";
+        #[cfg(not(target_os = "windows"))]
+        let launcher = "dg";
+
+        let binary = data_dir.join("bin").join(launcher);
 
         Self {
-            binary: PathBuf::from("dg"),
+            binary,
             runtime_dir: data_dir,
             socket_endpoint,
             tcp_fallback,

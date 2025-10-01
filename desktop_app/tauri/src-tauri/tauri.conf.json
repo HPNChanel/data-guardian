@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.dataguardian.desktop",
   "build": {
-    "beforeBuildCommand": "npm run prebuild:dg",
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "npm --prefix ../ui run build",
+    "beforeDevCommand": "npm --prefix ../ui run tauri:dev",
+    "devUrl": null,
+    "frontendDist": "../ui/dist"
   },
   "app": {
     "withGlobalTauri": false,
@@ -31,10 +31,10 @@
   "bundle": {
     "active": true,
     "targets": ["dmg", "appimage", "deb", "msi"],
-    "resources": ["resources/**"],
+    "resources": ["../resources/**"],
     "macOS": {
       "minimumSystemVersion": "11",
-      "signingIdentity": null,
+      "signingIdentity": "See packaging/macos/SIGNING.md",
       "entitlements": null,
       "exceptionDomain": "localhost",
       "license": null,
@@ -48,7 +48,8 @@
     "windows": {
       "wix": {
         "language": "en-US"
-      }
+      },
+      "signingCertificate": "See packaging/windows/SIGNING.md"
     }
   },
   "plugins": {

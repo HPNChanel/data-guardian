@@ -1,4 +1,4 @@
-﻿[tool.poetry]
+[tool.poetry]
 name = "dg-core"
 version = "0.1.0"
 description = "DG Core: secure data scanning, redaction, and IPC services"

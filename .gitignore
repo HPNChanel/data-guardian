@@ -68,6 +68,9 @@ playwright.config.*
 tsconfig.json
 tsconfig.node.json
 vite.config.*
+!desktop_app/ui/package.json
+!desktop_app/ui/package-lock.json
+!desktop_app/ui/vite.config.ts
 
 # Environment and secrets
 .env
