@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360" role="img" aria-labelledby="title desc">
+  <title id="title">Settings view placeholder</title>
+  <desc id="desc">Illustration of settings form with inputs and buttons.</desc>
+  <rect width="600" height="360" fill="#f7f9fc" stroke="#d0d7e2" stroke-width="4" rx="16"/>
+  <rect x="60" y="60" width="480" height="44" fill="#ffffff" stroke="#d0d7e2" stroke-width="2" rx="10"/>
+  <text x="72" y="88" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" fill="#2c3e50">Core binary path</text>
+  <rect x="60" y="118" width="320" height="38" fill="#ffffff" stroke="#d0d7e2" stroke-width="2" rx="8"/>
+  <rect x="392" y="118" width="148" height="38" fill="#e8f1ff" stroke="#7a9fff" stroke-width="1.5" rx="8"/>
+  <text x="408" y="143" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" fill="#3056a5">Browse…</text>
+  <rect x="60" y="178" width="480" height="38" fill="#ffffff" stroke="#d0d7e2" stroke-width="2" rx="8"/>
+  <text x="72" y="202" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" fill="#4a4a4a">Socket path  •  /tmp/dg.sock</text>
+  <rect x="60" y="234" width="480" height="38" fill="#ffffff" stroke="#d0d7e2" stroke-width="2" rx="8"/>
+  <text x="72" y="258" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" fill="#4a4a4a">Log level: Info  •  Retention: 7 days</text>
+  <rect x="400" y="284" width="140" height="42" rx="10" fill="#3056a5"/>
+  <text x="430" y="310" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" fill="#ffffff">Save changes</text>
+</svg>
