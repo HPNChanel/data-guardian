@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360" role="img" aria-labelledby="title desc">
+  <title id="title">Logs view placeholder</title>
+  <desc id="desc">Stylized table with severity badges and export button.</desc>
+  <rect width="600" height="360" fill="#f5f7fa" stroke="#ccd5e0" stroke-width="4" rx="16"/>
+  <rect x="60" y="60" width="480" height="36" fill="#ffffff" stroke="#ccd5e0" stroke-width="2" rx="8"/>
+  <text x="72" y="84" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" fill="#3a4a5a">Filter: Warnings+</text>
+  <rect x="380" y="68" width="74" height="20" rx="10" fill="#ffe9e9"/>
+  <text x="392" y="82" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#d64545">Error</text>
+  <rect x="460" y="68" width="74" height="20" rx="10" fill="#e4f4ff"/>
+  <text x="474" y="82" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#2b6cb0">Info</text>
+  <rect x="60" y="112" width="480" height="180" fill="#ffffff" stroke="#ccd5e0" stroke-width="2" rx="10"/>
+  <text x="72" y="140" font-family="'Fira Mono', 'SFMono-Regular', Menlo, monospace" font-size="16" fill="#2d3748">[12:01:03] INFO  Core ping succeeded (24ms)</text>
+  <text x="72" y="176" font-family="'Fira Mono', 'SFMono-Regular', Menlo, monospace" font-size="16" fill="#b7791f">[12:05:48] WARN  Policy cache stale</text>
+  <text x="72" y="212" font-family="'Fira Mono', 'SFMono-Regular', Menlo, monospace" font-size="16" fill="#c53030">[12:08:12] ERROR Socket read failed</text>
+  <text x="72" y="248" font-family="'Fira Mono', 'SFMono-Regular', Menlo, monospace" font-size="16" fill="#4a5568">[12:09:45] INFO  Export created at Desktop/DataGuardianLogs.zip</text>
+  <rect x="400" y="310" width="140" height="40" rx="10" fill="#2b6cb0"/>
+  <text x="430" y="336" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" fill="#ffffff">Export logs</text>
+</svg>
