@@ -46,6 +46,7 @@
       }
     },
     "windows": {
+      "allowUnsigned": true,
       "wix": {
         "language": "en-US"
       },
@@ -54,7 +55,15 @@
   },
   "plugins": {
     "updater": {
-      "active": false
+      "active": true,
+      "dialog": true,
+      "endpoints": [
+        "https://github.com/data-guardian/data-guardian/releases/latest/download/latest.json"
+      ],
+      "pubkey": "<REPLACE-WITH-TAURI-UPDATER-PUBKEY>",
+      "windows": {
+        "installMode": "passive"
+      }
     },
     "shell": {
       "commands": {
