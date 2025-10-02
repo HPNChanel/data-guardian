@@ -27,7 +27,6 @@ regex = "^2024.5.15"
 structlog = "^24.1.0"
 platformdirs = "^4.2.0"
 anyio = "^4.3.0"
-udatetime = "^2.1.0"
 uvloop = { version = "^0.19.0", markers = "sys_platform != 'win32'" }
 pywin32 = { version = "^306", markers = "sys_platform == 'win32'" }
 pendulum = "^3.0.0"
