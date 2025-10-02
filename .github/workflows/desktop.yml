@@ -44,6 +44,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Enforce repository invariants
+        run: python repo_consistency_check.py
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 

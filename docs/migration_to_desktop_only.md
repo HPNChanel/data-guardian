@@ -1,94 +1,41 @@
 # Migration Plan: Desktop-Only Data Guardian
 
-> Goal: remove the web-hosted terminal surface and ship a signed, installable desktop application for Windows, macOS, and Linux while leaving the Python DG Core logic intact.
+> Status: completed. The web-hosted terminal has been removed and the repository now aligns with the desktop-only architecture described below.
 
-## Repository Map (current state)
-- [ ] Validate that the repo currently matches the following layout before applying changes:
+## Repository map
+- The repository now ships with the following high-level layout:
   ```text
   .
   ├── README.md
-  ├── data_guardian/
-  │   ├── pyproject.toml
-  │   ├── requirements.txt
-  │   ├── src/data_guardian/
-  │   └── tests/
-  ├── dg_core/
-  │   ├── pyproject.toml
-  │   ├── src/dg_core/
-  │   └── tests/
-  ├── index.html                 # Vite entry for web-hosted terminal build (to remove)
-  ├── scripts/build_dg_core.mjs   # Copies DG Core into Tauri resources
-  ├── src/                        # React + xterm.js web bundle (to replace)
-  ├── src-tauri/                  # Tauri shell (Rust)
-  │   ├── Cargo.toml
-  │   ├── tauri.conf.json
-  │   └── src/
-  ├── test-results/               # Playwright artefacts for web UI (to remove)
-  └── tests/ui/                   # Playwright specs for web terminal (to remove)
-  ```
-
-## Identify & Remove Web-Hosted Terminal Assets
-- [ ] Delete the web-hosted entrypoint and dev artefacts:
-  ```bash
-  rm index.html
-  rm -rf src/
-  rm -rf tests/ui/
-  rm -rf test-results/
-  ```
-- [ ] Remove any web deployment references in documentation (e.g., `README.md` sections pointing to browser usage).
-
-## Desktop Application Restructure
-- [ ] Create a dedicated desktop workspace:
-  ```bash
-  mkdir -p desktop_app/ui
-  mkdir -p desktop_app/tauri
-  ```
-- [ ] Move the existing Tauri project under `desktop_app/tauri/` and update paths:
-  ```bash
-  git mv src-tauri desktop_app/tauri
-  ```
-- [ ] Create a fresh Vite+React (or Svelte/solid) project scoped for desktop-only usage under `desktop_app/ui/`:
-  ```bash
-  cd desktop_app/ui
-  npm create vite@latest . -- --template react-ts
-  ```
-- [ ] Re-implement the terminal panel locally (reuse logic from `src/components/Terminal.tsx` but ensure it only runs within Tauri’s context, no external hosting or dev server exposure).
-- [ ] Wire IPC calls via Tauri commands instead of any HTTP bridge exposed by the web build.
-- [ ] Update import paths and build outputs so that `desktop_app/ui/dist/` is consumed by Tauri.
-
-### Updated directory tree (target)
-- [ ] Ensure the final top-level layout matches:
-  ```text
-  .
-  ├── README.md
-  ├── docs/
-  │   └── migration_to_desktop_only.md
+  ├── README_desktop.md
+  ├── CHANGELOG.md
   ├── data_guardian/
   ├── dg_core/
   ├── desktop_app/
-  │   ├── ui/                    # Vite desktop-only frontend
-  │   │   ├── package.json
-  │   │   ├── tsconfig.json
-  │   │   ├── src/
-  │   │   └── public/
-  │   └── tauri/
-  │       ├── Cargo.toml
-  │       ├── tauri.conf.json
+  │   ├── tauri/
+  │   │   ├── src-tauri/
+  │   │   └── tests/
+  │   └── ui/
+  │       ├── public/
   │       └── src/
   ├── packaging/
-  │   ├── README.md
-  │   ├── macos/
-  │   │   └── SIGNING.md
-  │   ├── windows/
-  │   │   ├── SIGNING.md
-  │   │   └── wix/ (heat candle placeholders)
-  │   └── linux/
-  │       └── SIGNING.md
   ├── scripts/
-  │   └── build_dg_core.mjs
   └── tests/
-      └── desktop/               # Replace Playwright specs with desktop smoke tests
+      └── desktop/
   ```
+
+## Identify & Remove Web-Hosted Terminal Assets
+- Legacy artefacts (`index.html`, `src/`, `tests/ui/`, and `test-results/`) have been removed.
+- `repo_consistency_check.py` enforces their absence in CI to prevent regressions.
+- Documentation has been scrubbed of browser-hosted terminal references.
+
+## Desktop Application Restructure
+- The Tauri workspace lives under `desktop_app/tauri/` and targets the renderer bundled from `desktop_app/ui/`.
+- IPC is driven exclusively through Tauri commands; no HTTP bridge remains.
+- Future UI features should be added under `desktop_app/ui/src/` and consume the local-only APIs exposed by the Rust host.
+
+### Updated directory tree (target)
+- The target layout above matches the current repository state. New platform-specific assets should continue to follow this structure.
 
 ## IPC & Runtime Strategy
 - [ ] Update `desktop_app/tauri/src/process/mod.rs` to eliminate TCP fallback by default (keep the code path guarded behind a feature flag for debugging only). Prefer:
@@ -105,17 +52,15 @@
   - Set `beforeBuildCommand` to `npm --prefix ../ui run build`.
   - Replace `beforeDevCommand` with `npm --prefix ../ui run tauri:dev` that runs Vite in Tauri dev mode without exposing a network port.
   - Add `bundle > resources` entries pointing at `../tauri/resources/**` for packaged Python runtime.
-- [ ] Update `desktop_app/ui/package.json` scripts:
-  - `"build": "vite build"`
-  - `"tauri:dev": "tauri dev --config ../tauri/tauri.conf.json"`
-  - Remove any `preview`/`serve` commands that start a standalone web server.
-- [ ] Add `desktop_app/ui/vite.config.ts` configuration for `base: "./"` to prevent absolute asset paths when bundled offline.
+- `desktop_app/ui/package.json` only exposes build and desktop dev scripts; standalone preview/serve commands have been removed.
+- `desktop_app/ui/vite.config.ts` defines `base: "./"` to keep asset paths relative for bundled builds.
 - [ ] Update `desktop_app/tauri/Cargo.toml` dependencies if needed to drop unused HTTP/gRPC crates and ensure only local IPC transports remain.
 
 ## Tests & Quality Gates
 - [ ] Replace browser-based Playwright tests with desktop smoke tests using `@tauri-apps/cli`’s testing harness or `spectron`-style e2e. Place them under `tests/desktop/`.
 - [ ] Add Python unit tests to guarantee DG Core functionality remains unchanged (`pytest` under `dg_core/tests` and `data_guardian/tests`).
-- [ ] Add Rust unit/integration tests under `desktop_app/tauri/tests/` that validate IPC handshake.
+- Desktop smoke tests and Rust integration tests live under `desktop_app/tauri/tests/` and `tests/desktop/`.
+- `repo_consistency_check.py` is executed in CI to guarantee the desktop layout stays intact.
 
 ## Build & Release Pipeline
 - [ ] Create GitHub Actions workflows under `.github/workflows/desktop.yml`:
@@ -134,7 +79,7 @@
 - [ ] Document update server expectations in `packaging/README.md` (to create).
 
 ## Documentation Updates
-- [ ] Update `README.md` to describe the desktop installation process and remove instructions about a web terminal.
+- `README.md` now describes the desktop installation process and omits browser-based guidance.
 - [ ] Add `docs/desktop_release_checklist.md` summarising signing, packaging, and verification steps.
 - [ ] Update `docs/ipc.md` (new) with socket locations, firewall notes, and troubleshooting tips.
 
