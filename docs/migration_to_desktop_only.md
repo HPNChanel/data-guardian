@@ -92,7 +92,7 @@
 
 ## IPC & Runtime Strategy
 - [ ] Update `desktop_app/tauri/src/process/mod.rs` to eliminate TCP fallback by default (keep the code path guarded behind a feature flag for debugging only). Prefer:
-  - Unix domain sockets at `~/Library/Application Support/DataGuardianDesktop/ipc/dg-core.sock` (macOS), `/home/$USER/.local/share/DataGuardianDesktop/ipc/dg-core.sock` (Linux).
+  - Unix domain sockets at `~/Library/Application Support/Data Guardian/ipc/dg-core.sock` (macOS), `~/.config/data-guardian/ipc/dg-core.sock` (Linux).
   - Windows named pipe `\\.\pipe\data_guardian_core`.
 - [ ] Document the IPC binding in `desktop_app/tauri/README.md` (to create) and emphasise local-only communication.
 - [ ] If HTTP/gRPC is retained for compatibility, bind strictly to `127.0.0.1` and document firewall considerations in `docs/ipc.md` (to create).

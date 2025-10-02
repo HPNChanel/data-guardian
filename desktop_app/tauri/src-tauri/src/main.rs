@@ -2,7 +2,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
-use data_guardian_desktop::bridge::{BridgeClient, BridgeConfig, Endpoint, RpcRequest, RpcResponse, TransportKind};
+use data_guardian_desktop::bridge::{
+    BridgeClient, BridgeConfig, Endpoint, RpcRequest, RpcResponse, TransportKind,
+};
 use data_guardian_desktop::process::{ProcessConfig, ProcessManager};
 use data_guardian_desktop::settings::{SettingsStore, UserSettings};
 use tauri::Manager;
@@ -172,7 +174,9 @@ impl AppState {
 
         let timeout = Duration::from_millis(timeout_override.unwrap_or(5_000));
 
-        Ok(BridgeConfig::new(endpoints).with_timeout(timeout).with_retries(2))
+        Ok(BridgeConfig::new(endpoints)
+            .with_timeout(timeout)
+            .with_retries(2))
     }
 }
 
@@ -182,7 +186,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let settings = settings_store.load().await.unwrap_or_default();
 
     let process_manager = Arc::new(ProcessManager::new(ProcessConfig::default()));
-    process_manager.set_allow_network(settings.allow_network).await;
+    process_manager
+        .set_allow_network(settings.allow_network)
+        .await;
 
     let app_state = AppState {
         client: Arc::new(Mutex::new(None)),
@@ -227,7 +233,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![dg_rpc, load_settings, save_settings, dg_check_updates])
+        .invoke_handler(tauri::generate_handler![
+            dg_rpc,
+            load_settings,
+            save_settings,
+            dg_check_updates
+        ])
         .run(tauri::generate_context!())
         .await?;
 

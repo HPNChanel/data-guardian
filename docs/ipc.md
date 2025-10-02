@@ -6,11 +6,11 @@ Data Guardian Desktop keeps all shell-to-core communication on the local machine
 
 | Platform | Transport | Location |
 | --- | --- | --- |
-| macOS | Unix domain socket | `~/Library/Application Support/DataGuardianDesktop/ipc/dg-core.sock` |
-| Linux | Unix domain socket | `/home/$USER/.local/share/DataGuardianDesktop/ipc/dg-core.sock` |
+| macOS | Unix domain socket | `~/Library/Application Support/Data Guardian/ipc/dg-core.sock` |
+| Linux | Unix domain socket | `~/.config/data-guardian/ipc/dg-core.sock` |
 | Windows | Named pipe | `\\.\pipe\data_guardian_core` |
 
-The Unix sockets are created inside the user-specific application data directory. Stale sockets are removed on launch. Ensure the parent `ipc/` directory is writable by the current user.
+The Unix sockets live inside the DG Core runtime directory described above. Stale sockets are removed on launch. Ensure the parent `ipc/` directory is writable by the current user.
 
 ## Firewall guidance
 
@@ -22,3 +22,4 @@ The desktop build disables TCP endpoints by default. The optional TCP JSON-RPC l
 - **Permission denied** – Verify the runtime directory under the user's application data folder has the correct owner and permissions.
 - **Antivirus interference** – On Windows, allow the named pipe `\\.\pipe\data_guardian_core` through any endpoint security tooling.
 - **Transport mismatch** – Confirm the Tauri settings point to the desired transport and that `debug-tcp-fallback` is disabled for production builds.
+- **Missing dependencies** – Re-run `python scripts/build_core_bundle.py` to rebuild the PyInstaller bundle and confirm the `dist/core/` directory contains `dg-core` (Unix) or `dg-core.exe` (Windows).

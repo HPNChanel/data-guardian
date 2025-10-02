@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use crate::runtime_paths::runtime_config_dir;
 use anyhow::{Context, Result};
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
 use crate::bridge::TransportKind;
@@ -47,9 +47,8 @@ pub struct SettingsStore {
 
 impl SettingsStore {
     pub fn new() -> Result<Self> {
-        let project_dirs = ProjectDirs::from("com", "dataguardian", "DataGuardianDesktop")
-            .context("unable to resolve project directories")?;
-        let path = project_dirs.config_dir().join("settings.json");
+        let runtime_dir = runtime_config_dir().context("unable to resolve runtime directory")?;
+        let path = runtime_dir.join("settings.json");
         Ok(Self { path })
     }
 
@@ -60,8 +59,9 @@ impl SettingsStore {
 
         match tokio::fs::read(&self.path).await {
             Ok(bytes) => {
-                let settings = serde_json::from_slice(&bytes)
-                    .with_context(|| format!("failed to parse settings at {}", self.path.display()))?;
+                let settings = serde_json::from_slice(&bytes).with_context(|| {
+                    format!("failed to parse settings at {}", self.path.display())
+                })?;
                 Ok(settings)
             }
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(UserSettings::default()),
@@ -71,9 +71,9 @@ impl SettingsStore {
 
     pub async fn save(&self, settings: &UserSettings) -> Result<()> {
         if let Some(parent) = self.path.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .with_context(|| format!("failed to prepare settings directory {}", parent.display()))?;
+            tokio::fs::create_dir_all(parent).await.with_context(|| {
+                format!("failed to prepare settings directory {}", parent.display())
+            })?;
         }
 
         let json = serde_json::to_vec_pretty(settings)?;
