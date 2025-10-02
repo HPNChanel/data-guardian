@@ -1,0 +1,17 @@
+[package]
+name = "dg_e2e_cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["Data Guardian E2E"]
+description = "Minimal RPC client used by end-to-end tests"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "io-util", "net"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+
+[target.'cfg(windows)'.dependencies]
+tokio-named-pipes = "0.1"

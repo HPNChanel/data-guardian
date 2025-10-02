@@ -1,0 +1,25 @@
+version: 1
+name: e2e-test
+description: Policy used by automated end-to-end tests
+defaults:
+  action: MASK
+  preserve_length: false
+  salt: null
+rules:
+  - name: redact pii
+    when: detector.startswith("pii.")
+    action: REDACT
+    priority: 10
+    preserve_length: false
+  - name: mask secrets
+    when: detector.startswith("secrets.")
+    action: MASK
+    priority: 20
+    preserve_length: true
+allowlist:
+  email_domains: []
+detectors:
+  include:
+    - pii.*
+    - secrets.*
+  exclude: []
