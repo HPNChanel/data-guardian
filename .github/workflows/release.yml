@@ -1,0 +1,185 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      draft_release:
+        description: "Create a draft release instead of publishing"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+      prerelease:
+        description: "Mark the GitHub release as a prerelease"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  build:
+    name: Build installers (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-13, windows-latest]
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+      APPLE_DEVELOPER_PASSWORD: ${{ secrets.APPLE_DEVELOPER_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      DG_APPLE_NOTARIZE: ${{ secrets.DG_APPLE_NOTARIZE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: desktop_app/ui/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('dg_core/pyproject.toml', 'data_guardian/pyproject.toml', 'data_guardian/requirements.txt') }}
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            desktop_app/tauri/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('desktop_app/tauri/src-tauri/Cargo.toml') }}
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e dg_core -e data_guardian
+        shell: bash
+
+      - name: Install UI dependencies
+        run: npm ci
+        working-directory: desktop_app/ui
+        shell: bash
+
+      - name: Build UI assets
+        run: npm run build
+        working-directory: desktop_app/ui
+        shell: bash
+
+      - name: Package DG Core runtime
+        run: node scripts/build_dg_core.mjs
+        shell: bash
+
+      - name: Run Python tests
+        run: pytest dg_core/tests data_guardian/tests
+        shell: bash
+
+      - name: Run Rust tests
+        run: cargo test --locked
+        working-directory: desktop_app/tauri/src-tauri
+        shell: bash
+
+      - name: Desktop smoke tests
+        run: node --test tests/desktop/smoke.test.mjs
+        shell: bash
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+        shell: bash
+
+      - name: Build desktop bundles
+        run: |
+          if [[ "${{ runner.os }}" == "macOS" && -z "${APPLE_DEVELOPER_ID}" ]]; then
+            export TAURI_APPLE_CERTIFICATE="adhoc";
+          fi
+          cargo tauri build --ci
+        working-directory: desktop_app/tauri/src-tauri
+        shell: bash
+
+      - name: Collect release artifacts
+        if: always()
+        run: |
+          import os
+          import pathlib
+          import shutil
+
+          bundle_root = pathlib.Path('desktop_app/tauri/src-tauri/target/release/bundle')
+          artifacts_dir = pathlib.Path('release-artifacts')
+          artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+          keep_names = {
+            'latest.json',
+            'update.json'
+          }
+          keep_suffixes = {
+            '.AppImage', '.dmg', '.msi', '.exe', '.app.tar.gz', '.tar.gz', '.zip', '.deb', '.rpm'
+          }
+
+          if bundle_root.exists():
+            for path in bundle_root.rglob('*'):
+              if not path.is_file():
+                continue
+              if path.name in keep_names or path.suffix in keep_suffixes or path.name.endswith('.tar.gz'):
+                target = artifacts_dir / path.name
+                shutil.copy2(path, target)
+        shell: python
+
+      - name: Upload installers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}-release
+          path: release-artifacts
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+          draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft_release == 'true' }}
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
