@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use data_guardian_desktop::bridge::{BridgeClient, Endpoint};
 use data_guardian_desktop::process::ProcessConfig;
-use directories::ProjectDirs;
+use data_guardian_desktop::runtime_paths::runtime_config_dir;
 
 #[cfg(target_family = "unix")]
 use tempfile::tempdir;
@@ -15,11 +15,11 @@ async fn default_endpoints_are_local_only() {
     let config = ProcessConfig::default();
     match &config.socket_endpoint {
         Endpoint::Unix(path) => {
-            let project_dirs = ProjectDirs::from("com", "dataguardian", "DataGuardianDesktop")
-                .expect("project directories");
+            let runtime_dir = runtime_config_dir().expect("runtime directory");
+            let expected_parent = runtime_dir.join("ipc");
             assert!(
-                path.starts_with(project_dirs.data_dir()),
-                "socket should live under the application data directory"
+                path.starts_with(&expected_parent),
+                "socket should live under the runtime ipc directory"
             );
         }
         Endpoint::NamedPipe(name) => {

@@ -17,7 +17,8 @@ async fn bridge_round_trip_tcp() -> Result<()> {
         }
     });
 
-    let config = BridgeConfig::new(vec![Endpoint::Tcp(address)]).with_timeout(Duration::from_millis(500));
+    let config =
+        BridgeConfig::new(vec![Endpoint::Tcp(address)]).with_timeout(Duration::from_millis(500));
     let client = BridgeClient::connect(config).await?;
 
     let request = RpcRequest {

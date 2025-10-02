@@ -6,7 +6,7 @@ from typing import Iterable, Optional
 
 import yaml
 from pydantic import BaseModel, Field, ValidationError
-from platformdirs import user_config_dir
+from .paths import runtime_config_dir
 
 
 class NetworkConfig(BaseModel):
@@ -45,7 +45,7 @@ def config_search_paths(explicit: Optional[Path] = None) -> Iterable[Path]:
         yield explicit
     cwd_config = Path.cwd() / ".dg" / "config.yaml"
     yield cwd_config
-    yield Path(user_config_dir("dg", roaming=True)) / "config.yaml"
+    yield runtime_config_dir() / "config.yaml"
 
 
 def load_config(path: Optional[Path] = None) -> AppConfig:

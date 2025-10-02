@@ -20,6 +20,7 @@ from ..utils.text import to_text
 from ..version import __version__
 from ..ipc.transport import BaseConnection, ConnectionClosed, NamedPipeTransport, UnixSocketTransport
 from ..logging import configure_logging
+from ..paths import default_named_pipe, default_unix_socket_path
 from .log_stream import get_log_stream
 from .protocol import (
     JSONRPCError,
@@ -40,8 +41,8 @@ from .protocol import (
 _MAX_REQUEST_BYTES = 512 * 1024
 _REQUEST_TIMEOUT = 15.0
 _LOG_STREAM_NAME = "logs"
-_DEFAULT_PIPE = r"\\\\.\\pipe\\DataGuardianIPC"
-_DEFAULT_SOCKET = Path.home() / ".local/share/data_guardian/ipc.sock"
+_DEFAULT_PIPE = default_named_pipe()
+_DEFAULT_SOCKET = default_unix_socket_path()
 
 logger = structlog.get_logger(__name__)
 

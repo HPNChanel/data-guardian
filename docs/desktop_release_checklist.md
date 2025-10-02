@@ -4,6 +4,8 @@
    - Update DG Core dependencies and run `pytest` for both `dg_core` and `data_guardian` packages.
    - Build the UI with `npm --prefix desktop_app/ui run build` and run linting/unit tests.
    - Package the embedded runtime with `node scripts/build_dg_core.mjs`.
+   - Build the standalone DG Core bundle with `python scripts/build_core_bundle.py` and stash artefacts from `dist/core/`.
+   - Record the bundled binary size and cold-start latency so we can catch regressions when dependencies change.
 2. **Security & signing**
    - Follow the platform-specific signing guides:
      - Windows EV certificate – see `packaging/windows/SIGNING.md`.

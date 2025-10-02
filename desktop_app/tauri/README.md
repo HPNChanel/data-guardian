@@ -2,8 +2,8 @@
 
 The Tauri shell embeds the DG Core Python runtime and exposes a secure desktop experience without opening any external network ports. Communication between the Rust shell and the Python core is intentionally restricted to local-only transports:
 
-- **macOS** – Unix domain socket at `~/Library/Application Support/DataGuardianDesktop/ipc/dg-core.sock`
-- **Linux** – Unix domain socket at `/home/$USER/.local/share/DataGuardianDesktop/ipc/dg-core.sock`
+- **macOS** – Unix domain socket at `~/Library/Application Support/Data Guardian/ipc/dg-core.sock`
+- **Linux** – Unix domain socket at `~/.config/data-guardian/ipc/dg-core.sock`
 - **Windows** – Named pipe `\\.\pipe\data_guardian_core`
 
 The default build does **not** enable TCP listeners. A TCP JSON-RPC endpoint remains behind the optional `debug-tcp-fallback` Cargo feature for development troubleshooting. Do not ship builds with that feature enabled.

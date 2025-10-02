@@ -8,8 +8,9 @@ background and is launched by the desktop application.
 
 | Platform | Endpoint |
 | --- | --- |
-| macOS / Linux | Unix domain socket at `~/.local/share/data_guardian/ipc.sock` |
-| Windows | Named pipe `\\.\\pipe\\DataGuardianIPC` |
+| macOS | Unix domain socket at `~/Library/Application Support/Data Guardian/ipc/dg-core.sock` |
+| Linux | Unix domain socket at `~/.config/data-guardian/ipc/dg-core.sock` |
+| Windows | Named pipe `\\.\\pipe\\data_guardian_core` |
 
 The daemon listens for newline-delimited JSON messages. Each message MUST be a
 single JSON object representing a JSON-RPC request or notification.
@@ -180,5 +181,5 @@ fields.
 ## Sample Ping
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"core.ping"}' | socat - UNIX-CONNECT:"$HOME/.local/share/data_guardian/ipc.sock"
+echo '{"jsonrpc":"2.0","id":1,"method":"core.ping"}' | socat - UNIX-CONNECT:"$HOME/.config/data-guardian/ipc/dg-core.sock"
 ```

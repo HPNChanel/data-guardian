@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
+use crate::runtime_paths::runtime_config_dir;
 use anyhow::{anyhow, Context, Result};
-use directories::ProjectDirs;
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
@@ -22,10 +22,8 @@ pub struct ProcessConfig {
 
 impl Default for ProcessConfig {
     fn default() -> Self {
-        let project_dirs = ProjectDirs::from("com", "dataguardian", "DataGuardianDesktop")
-            .expect("unable to resolve project directories");
-        let data_dir = project_dirs.data_dir().to_path_buf();
-        let ipc_dir = data_dir.join("ipc");
+        let runtime_dir = runtime_config_dir().expect("unable to resolve runtime directory");
+        let ipc_dir = runtime_dir.join("ipc");
 
         #[cfg(target_os = "windows")]
         let socket_endpoint = Endpoint::NamedPipe(r"\\.\pipe\data_guardian_core".to_string());
@@ -36,13 +34,11 @@ impl Default for ProcessConfig {
         let tcp_fallback = {
             #[cfg(feature = "debug-tcp-fallback")]
             {
-                Some(
-                    Endpoint::Tcp(
-                        "127.0.0.1:7878"
-                            .parse()
-                            .expect("valid tcp fallback address"),
-                    ),
-                )
+                Some(Endpoint::Tcp(
+                    "127.0.0.1:7878"
+                        .parse()
+                        .expect("valid tcp fallback address"),
+                ))
             }
 
             #[cfg(not(feature = "debug-tcp-fallback"))]
@@ -56,11 +52,11 @@ impl Default for ProcessConfig {
         #[cfg(not(target_os = "windows"))]
         let launcher = "dg";
 
-        let binary = data_dir.join("bin").join(launcher);
+        let binary = runtime_dir.join("bin").join(launcher);
 
         Self {
             binary,
-            runtime_dir: data_dir,
+            runtime_dir,
             socket_endpoint,
             tcp_fallback,
             allow_network: false,
@@ -161,7 +157,10 @@ impl ProcessManager {
 
         if tokio::fs::metadata(&config.runtime_dir).await.is_ok() {
             if let Err(err) = tokio::fs::remove_dir_all(&config.runtime_dir).await {
-                eprintln!("failed to reset runtime dir {}: {err}", config.runtime_dir.display());
+                eprintln!(
+                    "failed to reset runtime dir {}: {err}",
+                    config.runtime_dir.display()
+                );
             }
         }
 
@@ -174,7 +173,10 @@ impl ProcessManager {
                 let mut perms = metadata.permissions();
                 perms.set_mode(0o755);
                 if let Err(err) = tokio::fs::set_permissions(&config.binary, perms).await {
-                    eprintln!("failed to set permissions on {}: {err}", config.binary.display());
+                    eprintln!(
+                        "failed to set permissions on {}: {err}",
+                        config.binary.display()
+                    );
                 }
             }
         }
@@ -182,14 +184,16 @@ impl ProcessManager {
         Ok(())
     }
 
-
     async fn wait_for_ready(&self) -> Result<()> {
         let endpoints = self.endpoints().await;
         let deadline = Instant::now() + Duration::from_secs(1);
 
         loop {
             for endpoint in &endpoints {
-                if BridgeClient::probe_endpoint(endpoint, Duration::from_millis(200)).await.is_ok() {
+                if BridgeClient::probe_endpoint(endpoint, Duration::from_millis(200))
+                    .await
+                    .is_ok()
+                {
                     return Ok(());
                 }
             }
@@ -299,5 +303,3 @@ async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
     }
     Ok(())
 }
-
-

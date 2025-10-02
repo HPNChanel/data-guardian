@@ -100,7 +100,9 @@ impl BridgeClient {
             }
         }
 
-        Err(anyhow!("failed to reach DG Core on any configured endpoint"))
+        Err(anyhow!(
+            "failed to reach DG Core on any configured endpoint"
+        ))
     }
 
     pub async fn send_request(&self, request: RpcRequest) -> Result<RpcResponse> {
@@ -132,16 +134,16 @@ impl BridgeClient {
                 match Self::send_over_endpoint(&endpoint, &envelope, self.timeout).await {
                     Ok(bytes) => {
                         let response: JsonRpcResponse = serde_json::from_slice(&bytes)
-                            .with_context(|| format!("invalid json-rpc response from {}", endpoint))?;
+                            .with_context(|| {
+                                format!("invalid json-rpc response from {}", endpoint)
+                            })?;
                         let rpc = response.into_rpc()?;
                         *self.active_endpoint.lock().await = Some(endpoint.clone());
                         return Ok(rpc);
                     }
                     Err(err) => {
-                        last_err = Some(err.context(format!(
-                            "attempt {attempt} via {} failed",
-                            endpoint
-                        )));
+                        last_err =
+                            Some(err.context(format!("attempt {attempt} via {} failed", endpoint)));
                         tokio::time::sleep(Duration::from_millis(50)).await;
                     }
                 }
@@ -164,7 +166,9 @@ impl BridgeClient {
                 {
                     timeout(timeout, UnixStream::connect(path))
                         .await
-                        .with_context(|| format!("unix connect to {} timed out", path.display()))??;
+                        .with_context(|| {
+                            format!("unix connect to {} timed out", path.display())
+                        })??;
                     Ok(())
                 }
                 #[cfg(not(target_family = "unix"))]
@@ -207,7 +211,9 @@ impl BridgeClient {
                 {
                     let mut stream = timeout(timeout_duration, UnixStream::connect(path))
                         .await
-                        .with_context(|| format!("unix connect to {} timed out", path.display()))??;
+                        .with_context(|| {
+                            format!("unix connect to {} timed out", path.display())
+                        })??;
                     Self::exchange(&mut stream, message, timeout_duration).await
                 }
                 #[cfg(not(target_family = "unix"))]
