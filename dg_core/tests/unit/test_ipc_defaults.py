@@ -4,7 +4,9 @@ import pytest
 
 pytest.importorskip("yaml")
 
-from dg_core.config import AppConfig
+from pydantic import ValidationError
+
+from dg_core.config import AppConfig, IPCConfig
 from dg_core.ipc.transport import TCPTransport, UnixSocketTransport, create_transport
 
 
@@ -25,3 +27,8 @@ def test_tcp_transport_binds_loopback_only() -> None:
     assert isinstance(transport, TCPTransport)
     assert transport.host == "127.0.0.1"
     assert transport.port == 9231
+
+
+def test_tcp_transport_rejects_non_local_host() -> None:
+    with pytest.raises(ValidationError):
+        AppConfig(ipc=IPCConfig(transport="tcp", tcp_host="0.0.0.0", tcp_port=9000))

@@ -12,6 +12,8 @@ from threading import Event, Thread
 from typing import Awaitable, Callable, Optional, Set
 
 from ..config import AppConfig
+from ..paths import runtime_config_dir
+from ..utils.validation import ensure_loopback_host, resolve_and_check_path
 
 MessageHandler = Callable[["BaseConnection"], Awaitable[None]]
 
@@ -123,7 +125,7 @@ class UnixSocketTransport(_SocketTransport):
 class TCPTransport(_SocketTransport):
     def __init__(self, host: str, port: int) -> None:
         super().__init__()
-        self.host = host
+        self.host = ensure_loopback_host(host)
         self.port = port
 
     async def start(self, handler: MessageHandler) -> None:
@@ -282,7 +284,11 @@ def create_transport(config: AppConfig) -> BaseTransport:
     ipc_config = config.ipc
     transport = ipc_config.resolved_transport()
     if transport == "uds":
-        socket_path = ipc_config.socket_path or Path("/tmp/dg_core.sock")
+        if ipc_config.socket_path is not None:
+            socket_path = resolve_and_check_path(ipc_config.socket_path)
+        else:
+            default_runtime = runtime_config_dir() / "ipc" / "dg-core.sock"
+            socket_path = resolve_and_check_path(default_runtime)
         return UnixSocketTransport(Path(socket_path))
     if transport == "pipe":
         pipe_name = ipc_config.named_pipe or "dg_core"

@@ -11,10 +11,12 @@ from pydantic import BaseModel, ValidationError
 import structlog
 
 from ..config import AppConfig
+from ..paths import runtime_config_dir
 from ..policy import PolicyDocument, PolicyEngine, policy_from_path
 from ..redactor.engines import RedactionEngine
 from ..scanner import Scanner, ScannerConfig, scan_text
 from ..utils.text import to_text
+from ..utils.validation import resolve_and_check_path
 from ..version import __version__
 from .messages import (
     JSONRPCError,
@@ -40,6 +42,11 @@ class IPCServer:
         self._default_policy = policy_from_path(self._default_policy_path)
         self._policy_engine = PolicyEngine(self._default_policy)
         self._redactor = RedactionEngine(self._policy_engine)
+        self._policy_roots = [
+            self._default_policy_path.parent,
+            runtime_config_dir(),
+            Path.cwd(),
+        ]
         self._handlers: Dict[str, Callable[[JSONRPCRequest], Awaitable[JSONRPCResponse]]] = {
             "core.health": self._handle_health,
             "core.version": self._handle_version,
@@ -47,6 +54,9 @@ class IPCServer:
             "core.redact": self._handle_redact,
             "core.shutdown": self._handle_shutdown,
         }
+        if getattr(self.config.network, "policy_only_offline", False):
+            self._handlers["core.scan"] = self._policy_only_disabled
+            self._handlers["core.redact"] = self._policy_only_disabled
 
     async def serve_forever(self) -> None:
         logger.info("ipc.server.start", transport=self.config.ipc.resolved_transport())
@@ -130,7 +140,19 @@ class IPCServer:
         params: RedactRequest = parsed
         policy_doc = self._default_policy
         if params.policy_path:
-            policy_doc = policy_from_path(Path(params.policy_path))
+            try:
+                policy_path = resolve_and_check_path(
+                    params.policy_path,
+                    allowed_roots=self._policy_roots,
+                    must_exist=True,
+                    require_file=True,
+                )
+            except ValueError as exc:
+                return JSONRPCResponse(
+                    error=JSONRPCError(code=-32602, message="Invalid params", data=str(exc)),
+                    id=request.id,
+                )
+            policy_doc = policy_from_path(policy_path)
         elif params.policy:
             policy_doc = PolicyDocument.model_validate(params.policy)
         engine = PolicyEngine(policy_doc)
@@ -146,6 +168,13 @@ class IPCServer:
     async def _handle_shutdown(self, request: JSONRPCRequest) -> JSONRPCResponse:
         await self.stop()
         return JSONRPCResponse(result={"status": "shutting_down"}, id=request.id)
+
+    async def _policy_only_disabled(self, request: JSONRPCRequest) -> JSONRPCResponse:
+        message = "Policy-only offline mode enabled"
+        return JSONRPCResponse(
+            id=request.id,
+            error=JSONRPCError(code=-32010, message=message),
+        )
 
     def _parse_params(self, request: JSONRPCRequest, model: Type[BaseModel]) -> BaseModel | JSONRPCResponse:
         if request.params is None:

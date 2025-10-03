@@ -25,12 +25,22 @@ def main(ctx: typer.Context, config: Optional[Path] = typer.Option(None, "--conf
     configure_logging(ctx.obj.logging.normalized_level())
 
 
+def _guard_policy_only(feature: str) -> AppConfig:
+    ctx = typer.get_current_context()
+    config: AppConfig = ctx.obj
+    if getattr(config.network, "policy_only_offline", False):
+        typer.echo(f"{feature} is unavailable in policy-only offline mode", err=True)
+        raise typer.Exit(code=2)
+    return config
+
+
 @app.command()
 def scan(
     path: Path = typer.Argument(..., exists=True, readable=True),
     detector: Optional[str] = typer.Option(None, "--detector", help="Restrict to detector name or prefix"),
     max_results: Optional[int] = typer.Option(None, "--max-results", help="Cap detections"),
 ) -> None:
+    _guard_policy_only("Scanning")
     data = path.read_bytes()
     config = ScannerConfig(enabled=[detector] if detector else None, max_detections=max_results)
     detections = scan_text(data, config=config)
@@ -43,6 +53,7 @@ def redact(
     output: Path = typer.Option(..., "-o", "--output", help="Write redacted output here"),
     policy: Path = typer.Option(..., "--policy", help="Policy document for redaction"),
 ) -> None:
+    _guard_policy_only("Redaction")
     content = input_path.read_bytes()
     policy_doc = policy_from_path(policy)
     engine = PolicyEngine(policy_doc)
