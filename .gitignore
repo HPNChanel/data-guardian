@@ -47,6 +47,7 @@ dmypy.json
 
 # Rust/Cargo
 src-tauri/target/
+desktop_app/tauri/src-tauri/target/
 Cargo.lock
 **/*.rs.bk
 *.pdb

@@ -3,10 +3,10 @@ const path = require('node:path');
 const cli = require('@tauri-apps/cli');
 
 const uiDir = path.resolve(__dirname, '..');
-const tauriAppDir = path.resolve(uiDir, '../tauri');
-const configPath = path.resolve(tauriAppDir, 'src-tauri', 'tauri.conf.json');
+const tauriSrcDir = path.resolve(uiDir, '../tauri/src-tauri');
+const configPath = path.resolve(tauriSrcDir, 'tauri.conf.json');
 
-process.env.TAURI_APP_PATH = tauriAppDir;
+process.env.TAURI_APP_PATH = tauriSrcDir;
 process.env.TAURI_FRONTEND_PATH = uiDir;
 
 cli

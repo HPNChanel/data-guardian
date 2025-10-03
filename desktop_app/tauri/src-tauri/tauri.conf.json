@@ -38,9 +38,6 @@
       "deb",
       "msi"
     ],
-    "resources": [
-      "../resources/**"
-    ],
     "macOS": {
       "minimumSystemVersion": "11",
       "signingIdentity": "See packaging/macos/SIGNING.md",
