@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "tauri:dev": "tauri dev --config ../tauri/src-tauri/tauri.conf.json"
+    "dev": "vite dev",
+    "tauri:dev": "tauri dev --config ./tauri.conf.json"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
