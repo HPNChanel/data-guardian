@@ -24,33 +24,43 @@
     ],
     "security": {
       "assetProtocol": {
-        "scope": ["*"]
+        "scope": [
+          "*"
+        ]
       }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "appimage", "deb", "msi"],
-    "resources": ["../resources/**"],
+    "targets": [
+      "dmg",
+      "appimage",
+      "deb",
+      "msi"
+    ],
+    "resources": [
+      "../resources/**"
+    ],
     "macOS": {
       "minimumSystemVersion": "11",
       "signingIdentity": "See packaging/macos/SIGNING.md",
       "entitlements": null,
       "exceptionDomain": "localhost",
-      "license": null,
-      "universal": true
+      "license": null
     },
     "linux": {
       "deb": {
-        "depends": ["libgtk-3-0", "libgdk-pixbuf2.0-0", "libayatana-appindicator3-1"]
+        "depends": [
+          "libgtk-3-0",
+          "libgdk-pixbuf2.0-0",
+          "libayatana-appindicator3-1"
+        ]
       }
     },
     "windows": {
-      "allowUnsigned": true,
       "wix": {
         "language": "en-US"
-      },
-      "signingCertificate": "See packaging/windows/SIGNING.md"
+      }
     }
   },
   "plugins": {
@@ -74,9 +84,15 @@
             "windows": "powershell.exe"
           },
           "args": {
-            "linux": ["-l"],
-            "macos": ["-l"],
-            "windows": ["-NoLogo"]
+            "linux": [
+              "-l"
+            ],
+            "macos": [
+              "-l"
+            ],
+            "windows": [
+              "-NoLogo"
+            ]
           }
         }
       }
