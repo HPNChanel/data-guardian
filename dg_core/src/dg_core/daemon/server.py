@@ -17,10 +17,11 @@ from ..policy import PolicyDocument, PolicyEngine, policy_from_path
 from ..redactor.engines import RedactionEngine
 from ..scanner import Scanner, ScannerConfig, scan_text
 from ..utils.text import to_text
+from ..utils.validation import resolve_and_check_path
 from ..version import __version__
 from ..ipc.transport import BaseConnection, ConnectionClosed, NamedPipeTransport, UnixSocketTransport
 from ..logging import configure_logging
-from ..paths import default_named_pipe, default_unix_socket_path
+from ..paths import default_named_pipe, default_unix_socket_path, runtime_config_dir
 from .log_stream import get_log_stream
 from .protocol import (
     JSONRPCError,
@@ -74,6 +75,11 @@ class DaemonServer:
         self._request_count = 0
         self._connections: set[int] = set()
         self._transport = self._create_transport(socket_path=socket_path, pipe_name=pipe_name)
+        self._policy_roots = [
+            self._default_policy_path.parent,
+            runtime_config_dir(),
+            Path.cwd(),
+        ]
         self._register_methods()
 
     async def serve_forever(self) -> None:
@@ -338,17 +344,13 @@ class DaemonServer:
         raw = params.get(key)
         if not isinstance(raw, str):
             raise InvalidParams(f"'{key}' must be a string path")
-        path = Path(raw).expanduser()
-        resolved = path.resolve(strict=False)
-        if not resolved.exists():
-            raise RPCError(-32001, f"Path does not exist: {raw}")
-        if not resolved.is_file():
-            raise RPCError(-32001, f"Path must be a file: {raw}")
-        return resolved
+        try:
+            return resolve_and_check_path(raw, must_exist=True, require_file=True)
+        except ValueError as exc:
+            raise RPCError(-32001, str(exc)) from exc
 
     def _require_output_path(self, raw: str) -> Path:
-        path = Path(raw).expanduser()
-        resolved = path.resolve(strict=False)
+        resolved = resolve_and_check_path(raw, must_exist=False)
         resolved.parent.mkdir(parents=True, exist_ok=True)
         return resolved
 
@@ -361,9 +363,15 @@ class DaemonServer:
             except ValidationError as exc:
                 raise InvalidParams("Invalid policy document", data=exc.errors()) from exc
         if policy_path:
-            candidate = Path(policy_path).expanduser().resolve(strict=False)
-            if not candidate.exists():
-                raise RPCError(-32001, f"Policy path does not exist: {policy_path}")
+            try:
+                candidate = resolve_and_check_path(
+                    policy_path,
+                    allowed_roots=self._policy_roots,
+                    must_exist=True,
+                    require_file=True,
+                )
+            except ValueError as exc:
+                raise RPCError(-32001, str(exc)) from exc
             try:
                 return policy_from_path(candidate)
             except ValidationError as exc:

@@ -54,3 +54,40 @@ async def test_ipc_server_health_and_scan():
     writer.close()
     await writer.wait_closed()
     await asyncio.wait_for(task, timeout=2)
+
+
+@pytest.mark.asyncio
+async def test_policy_only_mode_blocks_mutating_calls() -> None:
+    port = _free_port()
+    config = AppConfig(
+        network=NetworkConfig(policy_only_offline=True),
+        logging=LoggingConfig(level="INFO"),
+        ipc=IPCConfig(transport="tcp", tcp_host="127.0.0.1", tcp_port=port),
+    )
+    server = IPCServer(config)
+    task = asyncio.create_task(server.serve_forever())
+    await asyncio.sleep(0.2)
+
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    scan = await _rpc(
+        reader,
+        writer,
+        "core.scan",
+        params={"text": "email bob@example.com"},
+        request_id=1,
+    )
+    assert scan["error"]["code"] == -32010
+
+    redact = await _rpc(
+        reader,
+        writer,
+        "core.redact",
+        params={"text": "secret"},
+        request_id=2,
+    )
+    assert redact["error"]["code"] == -32010
+
+    await _rpc(reader, writer, "core.shutdown", request_id=3)
+    writer.close()
+    await writer.wait_closed()
+    await asyncio.wait_for(task, timeout=2)

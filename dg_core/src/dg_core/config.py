@@ -5,12 +5,17 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from .paths import runtime_config_dir
+from .utils.validation import ensure_loopback_host, resolve_and_check_path
 
 
 class NetworkConfig(BaseModel):
     allow: bool = Field(default=False, description="Allow outbound network calls")
+    policy_only_offline: bool = Field(
+        default=False,
+        description="Restrict functionality to policy management when offline",
+    )
 
 
 class LoggingConfig(BaseModel):
@@ -29,6 +34,18 @@ class IPCConfig(BaseModel):
 
     def resolved_transport(self) -> str:
         return self.transport.lower()
+
+    @field_validator("tcp_host")
+    @classmethod
+    def _validate_tcp_host(cls, value: str) -> str:
+        return ensure_loopback_host(value)
+
+    @field_validator("socket_path")
+    @classmethod
+    def _validate_socket_path(cls, value: Optional[Path]) -> Optional[Path]:
+        if value is None:
+            return None
+        return resolve_and_check_path(value)
 
 
 class AppConfig(BaseModel):
