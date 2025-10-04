@@ -5,7 +5,7 @@ edition = "2021"
 
 [features]
 default = []
-auto-update = []
+auto-update = ["tauri-plugin-updater"]
 debug-tcp-fallback = []
 
 [build-dependencies]
@@ -24,6 +24,7 @@ thiserror = "1.0"
 tauri = { version = "^2.0.0", features = ["default"] }
 tauri-plugin-shell = "^2.0.0"
 tauri-plugin-store = { version = "^2.0.0" }
+tauri-plugin-updater = { version = "^2.0.0", optional = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time", "net", "io-util", "process"] }
 tokio-util = "0.7"
 tokio-stream = "0.1"

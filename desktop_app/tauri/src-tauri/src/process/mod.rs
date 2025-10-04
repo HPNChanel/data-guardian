@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
@@ -7,6 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
+use tauri::Manager;
 
 use crate::bridge::{BridgeClient, Endpoint};
 
@@ -23,13 +25,15 @@ pub struct ProcessConfig {
 impl Default for ProcessConfig {
     fn default() -> Self {
         let runtime_dir = runtime_config_dir().expect("unable to resolve runtime directory");
-        let ipc_dir = runtime_dir.join("ipc");
 
         #[cfg(target_os = "windows")]
         let socket_endpoint = Endpoint::NamedPipe(r"\\.\pipe\data_guardian_core".to_string());
 
         #[cfg(not(target_os = "windows"))]
-        let socket_endpoint = Endpoint::Unix(ipc_dir.join("dg-core.sock"));
+        let socket_endpoint = {
+            let ipc_dir = runtime_dir.join("ipc");
+            Endpoint::Unix(ipc_dir.join("dg-core.sock"))
+        };
 
         let tcp_fallback = {
             #[cfg(feature = "debug-tcp-fallback")]
@@ -289,17 +293,23 @@ async fn ensure_dirs(path: &Path) -> Result<()> {
 }
 
 async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    tokio::fs::create_dir_all(dst).await?;
-    let mut entries = tokio::fs::read_dir(src).await?;
-    while let Some(entry) = entries.next_entry().await? {
-        let entry_path = entry.path();
-        let target_path = dst.join(entry.file_name());
-        let file_type = entry.file_type().await?;
-        if file_type.is_dir() {
-            copy_dir_recursive(&entry_path, &target_path).await?;
-        } else {
-            tokio::fs::copy(&entry_path, &target_path).await?;
+    let mut stack = VecDeque::new();
+    stack.push_back((src.to_path_buf(), dst.to_path_buf()));
+
+    while let Some((src_dir, dst_dir)) = stack.pop_back() {
+        tokio::fs::create_dir_all(&dst_dir).await?;
+        let mut entries = tokio::fs::read_dir(&src_dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let entry_path = entry.path();
+            let target_path = dst_dir.join(entry.file_name());
+            let file_type = entry.file_type().await?;
+            if file_type.is_dir() {
+                stack.push_back((entry_path, target_path));
+            } else {
+                tokio::fs::copy(&entry_path, &target_path).await?;
+            }
         }
     }
+
     Ok(())
 }

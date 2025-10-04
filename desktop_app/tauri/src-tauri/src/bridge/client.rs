@@ -12,9 +12,9 @@ use tokio::time::timeout;
 #[cfg(target_family = "unix")]
 use tokio::net::UnixStream;
 #[cfg(target_os = "windows")]
-use tokio_named_pipes::ClientOptions;
+use tokio::net::windows::named_pipe::ClientOptions;
 #[cfg(target_os = "windows")]
-use tokio_named_pipes::NamedPipeClient;
+use tokio::net::windows::named_pipe::NamedPipeClient;
 
 use super::transport::Endpoint;
 
@@ -153,10 +153,10 @@ impl BridgeClient {
         Err(last_err.unwrap_or_else(|| anyhow!("request dispatch failed")))
     }
 
-    pub async fn probe_endpoint(endpoint: &Endpoint, timeout: Duration) -> Result<()> {
+    pub async fn probe_endpoint(endpoint: &Endpoint, timeout_duration: Duration) -> Result<()> {
         match endpoint {
             Endpoint::Tcp(addr) => {
-                timeout(timeout, TcpStream::connect(addr))
+                timeout(timeout_duration, TcpStream::connect(addr))
                     .await
                     .context("tcp connect timed out")??;
                 Ok(())
@@ -164,7 +164,7 @@ impl BridgeClient {
             Endpoint::Unix(path) => {
                 #[cfg(target_family = "unix")]
                 {
-                    timeout(timeout, UnixStream::connect(path))
+                    timeout(timeout_duration, UnixStream::connect(path))
                         .await
                         .with_context(|| {
                             format!("unix connect to {} timed out", path.display())
@@ -248,7 +248,7 @@ impl BridgeClient {
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
         let mut response = Vec::with_capacity(512);
-        let mut payload = message.to_vec();
+        let payload = message.to_vec();
 
         timeout(timeout_duration, async {
             if !payload.is_empty() {

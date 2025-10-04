@@ -7,16 +7,18 @@ use data_guardian_desktop::bridge::{
 };
 use data_guardian_desktop::process::{ProcessConfig, ProcessManager};
 use data_guardian_desktop::settings::{SettingsStore, UserSettings};
-use tauri::Manager;
+use tauri::Emitter;
 use tokio::sync::Mutex;
 use uuid::Uuid;
+
+#[cfg(feature = "auto-update")]
+use tauri_plugin_updater::UpdaterExt;
 
 type SharedClient = Arc<Mutex<Option<Arc<BridgeClient>>>>;
 
 #[cfg(feature = "auto-update")]
 fn configure_updater(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
-    let _ = tauri::updater::builder();
-    builder
+    builder.plugin(tauri_plugin_updater::Builder::new().build())
 }
 
 #[cfg(not(feature = "auto-update"))]
@@ -94,12 +96,17 @@ async fn save_settings(
     Ok(())
 }
 
+#[cfg(feature = "auto-update")]
 #[tauri::command]
 async fn dg_check_updates(app: tauri::AppHandle) -> Result<String, String> {
-    match tauri::updater::check(&app).await {
+    let updater = app
+        .updater()
+        .map_err(|err| err.to_string())?;
+
+    match updater.check().await {
         Ok(Some(update)) => {
             let mut message = format!("Update {} available", update.version);
-            if let Some(body) = update.body {
+            if let Some(body) = update.body.filter(|body| !body.trim().is_empty()) {
                 message.push_str(": ");
                 message.push_str(body.trim());
             }
@@ -108,6 +115,12 @@ async fn dg_check_updates(app: tauri::AppHandle) -> Result<String, String> {
         Ok(None) => Ok("You are running the latest version.".into()),
         Err(err) => Err(err.to_string()),
     }
+}
+
+#[cfg(not(feature = "auto-update"))]
+#[tauri::command]
+async fn dg_check_updates(_app: tauri::AppHandle) -> Result<String, String> {
+    Err("Auto-update is disabled".into())
 }
 
 #[derive(Clone)]
@@ -180,8 +193,7 @@ impl AppState {
     }
 }
 
-#[tauri::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn bootstrap_app_state() -> Result<AppState> {
     let settings_store = Arc::new(SettingsStore::new()?);
     let settings = settings_store.load().await.unwrap_or_default();
 
@@ -190,57 +202,64 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .set_allow_network(settings.allow_network)
         .await;
 
-    let app_state = AppState {
+    Ok(AppState {
         client: Arc::new(Mutex::new(None)),
         settings: Arc::new(Mutex::new(settings)),
         settings_store,
-        process: process_manager.clone(),
-    };
+        process: process_manager,
+    })
+}
 
-    let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_store::Builder::default().build());
-    let builder = configure_updater(builder);
+fn run_app(app_state: AppState) -> Result<()> {
+    let state_for_setup = app_state.clone();
 
-    builder
-        .setup(move |app| {
-            let state = app_state.clone();
-            app.manage(state.clone());
+    configure_updater(
+        tauri::Builder::default()
+            .plugin(tauri_plugin_shell::init())
+            .plugin(tauri_plugin_store::Builder::default().build())
+            .manage(app_state),
+    )
+    .setup(move |app| {
+        let handle = app.handle();
+        let process = state_for_setup.process.clone();
 
-            let handle = app.handle();
-            let process = state.process.clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(err) = process.prepare_runtime(&handle).await {
-                    handle
-                        .emit(
-                            "dg-core:error",
-                            format!("runtime preparation failed: {err}"),
-                        )
-                        .unwrap_or_else(|emit_err| {
-                            eprintln!("failed to emit core error event: {emit_err}");
-                        });
-                    return;
-                }
+        let handle_for_task = handle.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(err) = process.prepare_runtime(&handle_for_task).await {
+                handle_for_task
+                    .emit(
+                        "dg-core:error",
+                        format!("runtime preparation failed: {err}"),
+                    )
+                    .unwrap_or_else(|emit_err| {
+                        eprintln!("failed to emit core error event: {emit_err}");
+                    });
+                return;
+            }
 
-                if let Err(err) = process.ensure_running().await {
-                    handle
-                        .emit("dg-core:error", err.to_string())
-                        .unwrap_or_else(|emit_err| {
-                            eprintln!("failed to emit core error event: {emit_err}");
-                        });
-                }
-            });
+            if let Err(err) = process.ensure_running().await {
+                handle_for_task
+                    .emit("dg-core:error", err.to_string())
+                    .unwrap_or_else(|emit_err| {
+                        eprintln!("failed to emit core error event: {emit_err}");
+                    });
+            }
+        });
 
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
-            dg_rpc,
-            load_settings,
-            save_settings,
-            dg_check_updates
-        ])
-        .run(tauri::generate_context!())
-        .await?;
+        Ok(())
+    })
+    .invoke_handler(tauri::generate_handler![
+        dg_rpc,
+        load_settings,
+        save_settings,
+        dg_check_updates
+    ])
+    .run(tauri::generate_context!())?;
 
     Ok(())
+}
+
+fn main() -> Result<()> {
+    let app_state = tauri::async_runtime::block_on(bootstrap_app_state())?;
+    run_app(app_state)
 }

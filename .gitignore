@@ -1,4 +1,4 @@
-# Project-specific
+    # Project-specific
 venv/
 __pycache__/
 dg_store/

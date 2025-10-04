@@ -6,8 +6,8 @@
   "build": {
     "beforeBuildCommand": "npm --prefix ../ui run build",
     "beforeDevCommand": "npm --prefix ../ui run dev",
-    "devUrl": null,
-    "frontendDist": "../ui/dist"
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../../ui/dist"
   },
   "app": {
     "withGlobalTauri": false,
@@ -42,8 +42,7 @@
       "minimumSystemVersion": "11",
       "signingIdentity": "See packaging/macos/SIGNING.md",
       "entitlements": null,
-      "exceptionDomain": "localhost",
-      "license": null
+      "exceptionDomain": "localhost"
     },
     "linux": {
       "deb": {
@@ -73,27 +72,7 @@
       }
     },
     "shell": {
-      "commands": {
-        "system-shell": {
-          "cmd": {
-            "linux": "/bin/bash",
-            "macos": "/bin/zsh",
-            "windows": "powershell.exe"
-          },
-          "args": {
-            "linux": [
-              "-l"
-            ],
-            "macos": [
-              "-l"
-            ],
-            "windows": [
-              "-NoLogo"
-            ]
-          }
-        }
-      }
-    },
-    "store": {}
+      "open": true
+    }
   }
 }
