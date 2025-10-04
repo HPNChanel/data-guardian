@@ -1,265 +1,130 @@
-use std::sync::Arc;
-use std::time::Duration;
+use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
-use data_guardian_desktop::bridge::{
-    BridgeClient, BridgeConfig, Endpoint, RpcRequest, RpcResponse, TransportKind,
+use anyhow::Result;
+use desktop_app::{
+    controller::{Controller, ControllerEvent},
+    desktop_config, telemetry,
 };
-use data_guardian_desktop::process::{ProcessConfig, ProcessManager};
-use data_guardian_desktop::settings::{SettingsStore, UserSettings};
 use tauri::Emitter;
-use tokio::sync::Mutex;
-use uuid::Uuid;
-
-#[cfg(feature = "auto-update")]
-use tauri_plugin_updater::UpdaterExt;
-
-type SharedClient = Arc<Mutex<Option<Arc<BridgeClient>>>>;
-
-#[cfg(feature = "auto-update")]
-fn configure_updater(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
-    builder.plugin(tauri_plugin_updater::Builder::new().build())
-}
-
-#[cfg(not(feature = "auto-update"))]
-fn configure_updater(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
-    builder
-}
-
-#[tauri::command]
-async fn dg_rpc(
-    state: tauri::State<'_, AppState>,
-    method: String,
-    params: Option<serde_json::Value>,
-    timeout_ms: Option<u64>,
-) -> Result<RpcResponse, String> {
-    let client = state
-        .ensure_client(timeout_ms)
-        .await
-        .map_err(|err| format!("bridge error: {err}"))?;
-
-    let request = RpcRequest {
-        id: Uuid::new_v4().to_string(),
-        method,
-        params,
-    };
-
-    client
-        .send_request(request)
-        .await
-        .map_err(|err| format!("rpc dispatch failed: {err}"))
-}
-
-#[tauri::command]
-async fn load_settings(state: tauri::State<'_, AppState>) -> Result<UserSettings, String> {
-    let settings = state.settings.lock().await.clone();
-    Ok(settings)
-}
-
-#[tauri::command]
-async fn save_settings(
-    state: tauri::State<'_, AppState>,
-    updated: UserSettings,
-) -> Result<(), String> {
-    let previous_allow = {
-        let mut guard = state.settings.lock().await;
-        let previous = guard.allow_network;
-        *guard = updated.clone();
-        previous
-    };
-
-    state
-        .settings_store
-        .save(&updated)
-        .await
-        .map_err(|err| err.to_string())?;
-
-    state.process.set_allow_network(updated.allow_network).await;
-
-    if previous_allow != updated.allow_network {
-        state
-            .process
-            .restart()
-            .await
-            .map_err(|err| err.to_string())?;
-    } else {
-        state
-            .process
-            .ensure_running()
-            .await
-            .map_err(|err| err.to_string())?;
-    }
-
-    let mut client = state.client.lock().await;
-    *client = None;
-
-    Ok(())
-}
-
-#[cfg(feature = "auto-update")]
-#[tauri::command]
-async fn dg_check_updates(app: tauri::AppHandle) -> Result<String, String> {
-    let updater = app
-        .updater()
-        .map_err(|err| err.to_string())?;
-
-    match updater.check().await {
-        Ok(Some(update)) => {
-            let mut message = format!("Update {} available", update.version);
-            if let Some(body) = update.body.filter(|body| !body.trim().is_empty()) {
-                message.push_str(": ");
-                message.push_str(body.trim());
-            }
-            Ok(message)
-        }
-        Ok(None) => Ok("You are running the latest version.".into()),
-        Err(err) => Err(err.to_string()),
-    }
-}
-
-#[cfg(not(feature = "auto-update"))]
-#[tauri::command]
-async fn dg_check_updates(_app: tauri::AppHandle) -> Result<String, String> {
-    Err("Auto-update is disabled".into())
-}
 
 #[derive(Clone)]
 struct AppState {
-    client: SharedClient,
-    settings: Arc<Mutex<UserSettings>>,
-    settings_store: Arc<SettingsStore>,
-    process: Arc<ProcessManager>,
+    controller: Controller,
+    data_dir: PathBuf,
 }
 
-impl AppState {
-    async fn ensure_client(&self, timeout_override: Option<u64>) -> Result<Arc<BridgeClient>> {
-        let cached = {
-            let guard = self.client.lock().await;
-            guard.clone()
-        };
+#[tauri::command]
+async fn encrypt_file(
+    state: tauri::State<'_, AppState>,
+    path: String,
+    recipients: Vec<String>,
+    labels: Vec<String>,
+) -> Result<String, String> {
+    let controller = state.controller.clone();
+    let path_buf = PathBuf::from(path);
+    controller
+        .encrypt_file(&path_buf, recipients, labels)
+        .await
+        .map(|output| output.to_string_lossy().into_owned())
+        .map_err(|err| err.to_string())
+}
 
-        if let Some(client) = cached {
-            return Ok(client);
-        }
+#[tauri::command]
+async fn decrypt_file(state: tauri::State<'_, AppState>, path: String) -> Result<String, String> {
+    let controller = state.controller.clone();
+    let path_buf = PathBuf::from(path);
+    controller
+        .decrypt_file(&path_buf)
+        .await
+        .map(|output| output.to_string_lossy().into_owned())
+        .map_err(|err| err.to_string())
+}
 
-        self.process.ensure_running().await?;
-        let config = self.build_client_config(timeout_override).await?;
-        let client = Arc::new(BridgeClient::connect(config).await?);
+#[tauri::command]
+async fn check_access(
+    state: tauri::State<'_, AppState>,
+    subject: String,
+    action: String,
+    resource: String,
+) -> Result<bool, String> {
+    state
+        .controller
+        .check_access(&subject, &action, &resource)
+        .await
+        .map_err(|err| err.to_string())
+}
 
-        let mut guard = self.client.lock().await;
-        *guard = Some(client.clone());
-        Ok(client)
+#[tauri::command]
+async fn tail_logs(state: tauri::State<'_, AppState>, limit: usize) -> Result<Vec<String>, String> {
+    telemetry::tail_logs(&state.data_dir, limit)
+        .await
+        .map_err(|err| err.to_string())
+}
+
+fn configure_updater(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    #[cfg(feature = "auto-update")]
+    {
+        builder.plugin(tauri_plugin_updater::Builder::new().build())
     }
+    #[cfg(not(feature = "auto-update"))]
+    {
+        builder
+    }
+}
 
-    async fn build_client_config(&self, timeout_override: Option<u64>) -> Result<BridgeConfig> {
-        let settings = self.settings.lock().await.clone();
-        let mut endpoints = Vec::new();
+fn main() {
+    if let Err(err) = run_app() {
+        eprintln!("Data Guardian desktop failed: {err}");
+        std::process::exit(1);
+    }
+}
 
-        if settings.transport != TransportKind::Auto {
-            if let Some(value) = settings.endpoint.as_deref() {
-                match Endpoint::from_user_input(settings.transport, value) {
-                    Ok(endpoint) => endpoints.push(endpoint),
-                    Err(err) => {
-                        eprintln!("invalid custom endpoint '{value}': {err}");
-                    }
+fn run_app() -> Result<()> {
+    let config = desktop_config::load()?;
+    telemetry::init(config.telemetry, &config.data_dir)?;
+
+    let controller = Controller::new(dg_core::api::new_default());
+    tauri::async_runtime::block_on(controller.boot(
+        &config.profile,
+        config.data_dir.clone(),
+        config.telemetry,
+    ))?;
+
+    let app_state = AppState {
+        controller: controller.clone(),
+        data_dir: config.data_dir.clone(),
+    };
+
+    configure_updater(tauri::Builder::default())
+        .manage(app_state.clone())
+        .invoke_handler(tauri::generate_handler![
+            encrypt_file,
+            decrypt_file,
+            check_access,
+            tail_logs
+        ])
+        .setup(move |app| {
+            let handle = app.handle().clone();
+            let mut rx = app_state.controller.subscribe();
+            tauri::async_runtime::spawn(async move {
+                while let Ok(event) = rx.recv().await {
+                    let payload = match event {
+                        ControllerEvent::Progress(msg) => serde_json::json!({
+                            "kind": "progress",
+                            "message": msg,
+                        }),
+                        ControllerEvent::Error(msg) => serde_json::json!({
+                            "kind": "error",
+                            "message": msg,
+                        }),
+                    };
+                    let _ = handle.emit("dg://controller", payload);
                 }
-            }
-        }
+            });
+            Ok(())
+        })
+        .run(tauri::generate_context!())?;
 
-        let defaults = self.process.endpoints().await;
-        for endpoint in defaults {
-            if settings.transport != TransportKind::Auto
-                && endpoint.kind() == settings.transport
-                && !endpoints.contains(&endpoint)
-            {
-                endpoints.insert(0, endpoint.clone());
-                continue;
-            }
-
-            if !endpoints.contains(&endpoint) {
-                endpoints.push(endpoint);
-            }
-        }
-
-        if endpoints.is_empty() {
-            return Err(anyhow!("no available endpoints configured"));
-        }
-
-        let timeout = Duration::from_millis(timeout_override.unwrap_or(5_000));
-
-        Ok(BridgeConfig::new(endpoints)
-            .with_timeout(timeout)
-            .with_retries(2))
-    }
-}
-
-async fn bootstrap_app_state() -> Result<AppState> {
-    let settings_store = Arc::new(SettingsStore::new()?);
-    let settings = settings_store.load().await.unwrap_or_default();
-
-    let process_manager = Arc::new(ProcessManager::new(ProcessConfig::default()));
-    process_manager
-        .set_allow_network(settings.allow_network)
-        .await;
-
-    Ok(AppState {
-        client: Arc::new(Mutex::new(None)),
-        settings: Arc::new(Mutex::new(settings)),
-        settings_store,
-        process: process_manager,
-    })
-}
-
-fn run_app(app_state: AppState) -> Result<()> {
-    let state_for_setup = app_state.clone();
-
-    configure_updater(
-        tauri::Builder::default()
-            .plugin(tauri_plugin_shell::init())
-            .plugin(tauri_plugin_store::Builder::default().build())
-            .manage(app_state),
-    )
-    .setup(move |app| {
-        let handle = app.handle();
-        let process = state_for_setup.process.clone();
-
-        let handle_for_task = handle.clone();
-        tauri::async_runtime::spawn(async move {
-            if let Err(err) = process.prepare_runtime(&handle_for_task).await {
-                handle_for_task
-                    .emit(
-                        "dg-core:error",
-                        format!("runtime preparation failed: {err}"),
-                    )
-                    .unwrap_or_else(|emit_err| {
-                        eprintln!("failed to emit core error event: {emit_err}");
-                    });
-                return;
-            }
-
-            if let Err(err) = process.ensure_running().await {
-                handle_for_task
-                    .emit("dg-core:error", err.to_string())
-                    .unwrap_or_else(|emit_err| {
-                        eprintln!("failed to emit core error event: {emit_err}");
-                    });
-            }
-        });
-
-        Ok(())
-    })
-    .invoke_handler(tauri::generate_handler![
-        dg_rpc,
-        load_settings,
-        save_settings,
-        dg_check_updates
-    ])
-    .run(tauri::generate_context!())?;
-
+    tauri::async_runtime::block_on(controller.shutdown())?;
     Ok(())
-}
-
-fn main() -> Result<()> {
-    let app_state = tauri::async_runtime::block_on(bootstrap_app_state())?;
-    run_app(app_state)
 }

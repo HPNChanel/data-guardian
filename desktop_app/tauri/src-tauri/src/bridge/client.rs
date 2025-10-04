@@ -9,12 +9,12 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
 
-#[cfg(target_family = "unix")]
-use tokio::net::UnixStream;
 #[cfg(target_os = "windows")]
 use tokio::net::windows::named_pipe::ClientOptions;
 #[cfg(target_os = "windows")]
 use tokio::net::windows::named_pipe::NamedPipeClient;
+#[cfg(target_family = "unix")]
+use tokio::net::UnixStream;
 
 use super::transport::Endpoint;
 
@@ -288,6 +288,7 @@ impl BridgeClient {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct JsonRpcResponse {
     #[serde(default)]

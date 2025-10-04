@@ -1,50 +1,39 @@
-use std::time::Duration;
-
-use data_guardian_desktop::bridge::{BridgeClient, Endpoint};
-use data_guardian_desktop::process::ProcessConfig;
-use data_guardian_desktop::runtime_paths::runtime_config_dir;
-
-#[cfg(target_family = "unix")]
+use anyhow::Result;
+use desktop_app::controller::Controller;
+use dg_core::api::new_default;
+use serde_json::json;
 use tempfile::tempdir;
-
-#[cfg(target_family = "unix")]
-use tokio::net::UnixListener;
+use tokio::fs;
 
 #[tokio::test]
-async fn default_endpoints_are_local_only() {
-    let config = ProcessConfig::default();
-    match &config.socket_endpoint {
-        Endpoint::Unix(path) => {
-            let runtime_dir = runtime_config_dir().expect("runtime directory");
-            let expected_parent = runtime_dir.join("ipc");
-            assert!(
-                path.starts_with(&expected_parent),
-                "socket should live under the runtime ipc directory"
-            );
-        }
-        Endpoint::NamedPipe(name) => {
-            assert!(name.starts_with(r"\\.\\pipe\\"), "named pipe should live under the Windows local namespace");
-        }
-        Endpoint::Tcp(_) => panic!("tcp should not be the primary transport"),
-    }
-
-    #[cfg(not(feature = "debug-tcp-fallback"))]
-    assert!(config.tcp_fallback.is_none(), "tcp fallback must be disabled by default");
-}
-
-#[cfg(target_family = "unix")]
-#[tokio::test]
-async fn unix_probe_completes_handshake() {
-    let temp_dir = tempdir().expect("temporary directory");
-    let socket_path = temp_dir.path().join("ipc.sock");
-    let listener = UnixListener::bind(&socket_path).expect("bind socket");
-    let accept_task = tokio::spawn(async move {
-        let (_stream, _) = listener.accept().await.expect("client connection");
+async fn policy_denies_encryption_when_rule_matches() -> Result<()> {
+    let temp = tempdir()?;
+    let data_dir = temp.path().join("core");
+    fs::create_dir_all(&data_dir).await?;
+    let policy = json!({
+        "default_allow": true,
+        "rules": [
+            {
+                "subject": "local-user",
+                "action": "encrypt",
+                "resource": "*",
+                "effect": "deny"
+            }
+        ]
     });
+    fs::write(data_dir.join("policy.json"), serde_json::to_vec_pretty(&policy)?).await?;
 
-    BridgeClient::probe_endpoint(&Endpoint::Unix(socket_path.clone()), Duration::from_millis(250))
-        .await
-        .expect("probe unix endpoint");
+    let controller = Controller::new(new_default());
+    controller.boot("dev", data_dir.clone(), false).await?;
 
-    accept_task.abort();
+    let source = temp.path().join("blocked.txt");
+    fs::write(&source, b"blocked").await?;
+
+    let result = controller
+        .encrypt_file(&source, vec!["beta".into()], vec!["internal".into()])
+        .await;
+    assert!(result.is_err(), "policy should block encryption");
+
+    controller.shutdown().await?;
+    Ok(())
 }

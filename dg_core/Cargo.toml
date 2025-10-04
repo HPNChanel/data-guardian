@@ -1,0 +1,21 @@
+[package]
+name = "dg_core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+base64 = "0.21"
+rand = "0.8"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+aes-gcm = { version = "0.10", features = ["aes"] }
+globset = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true }

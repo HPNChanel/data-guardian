@@ -1,63 +1,32 @@
-use std::time::Duration;
-
 use anyhow::Result;
-use data_guardian_desktop::bridge::{BridgeClient, BridgeConfig, Endpoint, RpcRequest};
-use serde_json::json;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::{TcpListener, TcpStream};
+use desktop_app::controller::Controller;
+use dg_core::api::new_default;
+use tempfile::tempdir;
+use tokio::fs;
 
 #[tokio::test]
-async fn bridge_round_trip_tcp() -> Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    let address = listener.local_addr()?;
+async fn controller_round_trip_encrypt_decrypt() -> Result<()> {
+    let temp = tempdir()?;
+    let data_dir = temp.path().join("data");
+    fs::create_dir_all(&data_dir).await?;
+    let controller = Controller::new(new_default());
+    controller
+        .boot("dev", data_dir.clone(), false)
+        .await
+        .expect("boot controller");
 
-    tokio::spawn(async move {
-        if let Ok((stream, _)) = listener.accept().await {
-            handle_connection(stream).await.unwrap();
-        }
-    });
+    let source = temp.path().join("message.txt");
+    fs::write(&source, b"classified payload").await?;
 
-    let config =
-        BridgeConfig::new(vec![Endpoint::Tcp(address)]).with_timeout(Duration::from_millis(500));
-    let client = BridgeClient::connect(config).await?;
+    let envelope_path = controller
+        .encrypt_file(&source, vec!["alpha".into()], vec!["confidential".into()])
+        .await?;
+    assert!(envelope_path.exists());
 
-    let request = RpcRequest {
-        id: "test".into(),
-        method: "echo".into(),
-        params: Some(json!({ "payload": "ping" })),
-    };
+    let recovered_path = controller.decrypt_file(&envelope_path).await?;
+    let contents = fs::read(&recovered_path).await?;
+    assert_eq!(contents, b"classified payload");
 
-    let response = client.send_request(request).await?;
-    let payload = response.result.expect("result expected");
-    assert_eq!(payload["method"], "echo");
-    assert_eq!(payload["params"]["payload"], "ping");
-
-    Ok(())
-}
-
-async fn handle_connection(stream: TcpStream) -> Result<()> {
-    let (reader, mut writer) = stream.into_split();
-    let mut reader = BufReader::new(reader);
-    let mut line = Vec::new();
-
-    while reader.read_until(b'\n', &mut line).await? != 0 {
-        let request: serde_json::Value = serde_json::from_slice(&line)?;
-        line.clear();
-
-        let response = json!({
-            "jsonrpc": "2.0",
-            "id": request["id"].clone(),
-            "result": {
-                "method": request["method"].clone(),
-                "params": request["params"].clone()
-            }
-        });
-
-        let mut bytes = serde_json::to_vec(&response)?;
-        bytes.push(b'\n');
-        writer.write_all(&bytes).await?;
-        writer.flush().await?;
-    }
-
+    controller.shutdown().await?;
     Ok(())
 }
