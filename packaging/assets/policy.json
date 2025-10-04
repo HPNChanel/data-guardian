@@ -1,0 +1,17 @@
+{
+  "default_allow": true,
+  "rules": [
+    {
+      "subject": "local-user",
+      "action": "encrypt",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "subject": "local-user",
+      "action": "decrypt",
+      "resource": "*",
+      "effect": "allow"
+    }
+  ]
+}

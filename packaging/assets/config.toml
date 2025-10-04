@@ -1,0 +1,4 @@
+# Default Data Guardian desktop configuration
+profile = "prod"
+telemetry = false
+# data_dir may be overridden by DG_DATA_DIR; default resolves per platform

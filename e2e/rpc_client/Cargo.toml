@@ -15,3 +15,8 @@ tokio-util = { version = "0.7", features = ["codec"] }
 
 [target.'cfg(windows)'.dependencies]
 tokio-named-pipes = "0.1"
+
+[dev-dependencies]
+desktop_app = { path = "../../desktop_app/tauri/src-tauri" }
+dg_core = { path = "../../dg_core" }
+tempfile = "3"

@@ -36,6 +36,10 @@ section "Building Tauri application"
 log "npx tauri build"
 ( cd "$TAURI_DIR" && CI=true npx tauri build --ci --config tauri.conf.json )
 
+section "Building desktop Rust binary"
+log "cargo build -p desktop_app --release"
+( cd "$ROOT_DIR" && cargo build -p desktop_app --release )
+
 if [ ! -d "$BUNDLE_DIR" ]; then
   echo "error: expected bundle directory not found at $BUNDLE_DIR" >&2
   exit 1
@@ -46,6 +50,15 @@ if compgen -G "$BUNDLE_DIR/*" > /dev/null; then
   cp -a "$BUNDLE_DIR/." "$PREVIEW_DIR/"
 else
   echo "warning: no artefacts found under $BUNDLE_DIR" >&2
+fi
+
+section "Bundling default assets"
+ASSET_DIR="$ROOT_DIR/packaging/assets"
+if [ -d "$ASSET_DIR" ]; then
+  mkdir -p "$PREVIEW_DIR/assets"
+  cp -a "$ASSET_DIR/." "$PREVIEW_DIR/assets/"
+else
+  echo "warning: asset directory $ASSET_DIR missing" >&2
 fi
 
 section "Running desktop smoke test"
