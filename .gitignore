@@ -1,4 +1,4 @@
-    # Project-specific
+# Project-specific
 venv/
 __pycache__/
 dg_store/
@@ -48,6 +48,7 @@ dmypy.json
 # Rust/Cargo
 src-tauri/target/
 desktop_app/tauri/src-tauri/target/
+target/
 Cargo.lock
 **/*.rs.bk
 *.pdb
@@ -155,3 +156,12 @@ logs/
 *.iso
 *.dmg
 ui/desktop/src-tauri/icons/icon.png
+data_guardian/dg_store/
+data_guardian/src/data_guardian.egg-info/
+data_guardian/*.dgd
+data_guardian/*.sig
+data_guardian/*.sig.json
+data_guardian/decrypted.txt
+data_guardian/plaintext.txt
+data_guardian/desktop_app/tauri/src-tauri/gen/
+data_guardian/desktop_app/tauri/src-tauri/target/debug

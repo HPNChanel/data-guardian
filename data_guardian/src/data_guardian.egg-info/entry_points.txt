@@ -1,2 +1,0 @@
-[console_scripts]
-data-guardian = data_guardian.cli:app
