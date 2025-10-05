@@ -1,0 +1,13 @@
+{
+  "identifier": "main",
+  "description": "Primary window capability with shell access for CLI commands.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-spawn",
+    "shell:allow-execute",
+    "shell:allow-stdin-write",
+    "shell:allow-kill",
+    "shell:allow-open"
+  ]
+}
