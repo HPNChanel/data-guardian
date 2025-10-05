@@ -18,23 +18,33 @@ async fn encrypt_file(
     state: tauri::State<'_, AppState>,
     path: String,
     recipients: Vec<String>,
-    labels: Vec<String>,
+    labels: Option<Vec<String>>,
+    out_dir: Option<String>,
 ) -> Result<String, String> {
     let controller = state.controller.clone();
     let path_buf = PathBuf::from(path);
     controller
-        .encrypt_file(&path_buf, recipients, labels)
+        .encrypt_file(
+            &path_buf,
+            recipients,
+            labels.unwrap_or_default(),
+            out_dir.map(PathBuf::from),
+        )
         .await
         .map(|output| output.to_string_lossy().into_owned())
         .map_err(|err| err.to_string())
 }
 
 #[tauri::command]
-async fn decrypt_file(state: tauri::State<'_, AppState>, path: String) -> Result<String, String> {
+async fn decrypt_file(
+    state: tauri::State<'_, AppState>,
+    path: String,
+    out_dir: Option<String>,
+) -> Result<String, String> {
     let controller = state.controller.clone();
     let path_buf = PathBuf::from(path);
     controller
-        .decrypt_file(&path_buf)
+        .decrypt_file(&path_buf, out_dir.map(PathBuf::from))
         .await
         .map(|output| output.to_string_lossy().into_owned())
         .map_err(|err| err.to_string())
@@ -96,6 +106,7 @@ fn run_app() -> Result<()> {
     };
 
     configure_updater(tauri::Builder::default())
+        .plugin(tauri_plugin_shell::init())
         .manage(app_state.clone())
         .invoke_handler(tauri::generate_handler![
             encrypt_file,

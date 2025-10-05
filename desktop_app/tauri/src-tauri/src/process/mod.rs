@@ -5,10 +5,10 @@ use std::time::{Duration, Instant};
 
 use crate::runtime_paths::runtime_config_dir;
 use anyhow::{anyhow, Context, Result};
+use tauri::Manager;
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
-use tauri::Manager;
 
 use crate::bridge::{BridgeClient, Endpoint};
 

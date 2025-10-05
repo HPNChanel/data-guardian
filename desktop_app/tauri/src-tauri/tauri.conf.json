@@ -74,5 +74,8 @@
     "shell": {
       "open": true
     }
-  }
+  },
+  "capabilities": [
+    "src-tauri/capabilities/main.json"
+  ]
 }

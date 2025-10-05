@@ -1,0 +1,35 @@
+{
+  "identifier": "main",
+  "description": "Primary window capability with shell access for CLI commands.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "shell:allow-spawn",
+      "scope": {
+        "allow": [
+          {
+            "name": "data-guardian",
+            "cmd": "data-guardian",
+            "args": true
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "shell:allow-execute",
+      "scope": {
+        "allow": [
+          {
+            "name": "data-guardian",
+            "cmd": "data-guardian",
+            "args": true
+          }
+        ]
+      }
+    },
+    "shell:allow-stdin-write",
+    "shell:allow-kill",
+    "shell:allow-open"
+  ]
+}
