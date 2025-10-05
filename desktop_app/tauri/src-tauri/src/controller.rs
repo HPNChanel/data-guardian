@@ -58,6 +58,7 @@ impl Controller {
         path: &Path,
         recipients: Vec<String>,
         labels: Vec<String>,
+        out_dir: Option<PathBuf>,
     ) -> Result<PathBuf> {
         let canonical = path
             .canonicalize()
@@ -69,8 +70,19 @@ impl Controller {
         )
         .await?;
 
+        let output_directory = match out_dir {
+            Some(dir) => {
+                ensure_directory(&dir).await?;
+                Some(dir)
+            }
+            None => None,
+        };
+
         let controller = self.clone();
         let path_buf = canonical.clone();
+        let labels_clone = labels.clone();
+        let recipients_clone = recipients.clone();
+        let output_directory = output_directory.clone();
         let handle = task::spawn(async move {
             controller
                 .emit(ControllerEvent::Progress(format!(
@@ -85,12 +97,12 @@ impl Controller {
                 .dg
                 .encrypt(EncryptRequest {
                     plaintext,
-                    labels: labels.clone(),
-                    recipients: recipients.clone(),
+                    labels: labels_clone,
+                    recipients: recipients_clone,
                 })
                 .await
                 .map_err(|err| anyhow::anyhow!("encryption failed: {err}"))?;
-            let target = encrypted_path(&path_buf);
+            let target = encrypted_target(&path_buf, output_directory.as_deref())?;
             persist_envelope(&target, &envelope, &path_buf)
                 .await
                 .with_context(|| format!("failed to write {}", target.display()))?;
@@ -107,7 +119,7 @@ impl Controller {
     }
 
     #[instrument(skip(self))]
-    pub async fn decrypt_file(&self, path: &Path) -> Result<PathBuf> {
+    pub async fn decrypt_file(&self, path: &Path, out_dir: Option<PathBuf>) -> Result<PathBuf> {
         let canonical = path
             .canonicalize()
             .with_context(|| format!("unable to canonicalize {}", path.display()))?;
@@ -118,8 +130,17 @@ impl Controller {
         )
         .await?;
 
+        let output_directory = match out_dir {
+            Some(dir) => {
+                ensure_directory(&dir).await?;
+                Some(dir)
+            }
+            None => None,
+        };
+
         let controller = self.clone();
         let path_buf = canonical.clone();
+        let output_directory_clone = output_directory.clone();
         let handle = task::spawn(async move {
             controller
                 .emit(ControllerEvent::Progress(format!(
@@ -135,7 +156,7 @@ impl Controller {
                 .decrypt(envelope)
                 .await
                 .map_err(|err| anyhow::anyhow!("decryption failed: {err}"))?;
-            let target = decrypted_path(&path_buf);
+            let target = decrypted_target(&path_buf, output_directory_clone.as_deref())?;
             fs::write(&target, &plaintext)
                 .await
                 .with_context(|| format!("failed to write {}", target.display()))?;
@@ -241,4 +262,45 @@ fn enrich_meta(envelope: &Envelope, source: &Path) -> serde_json::Value {
         );
     }
     meta
+}
+
+async fn ensure_directory(path: &Path) -> Result<()> {
+    let metadata = fs::metadata(path)
+        .await
+        .with_context(|| format!("output directory does not exist: {}", path.display()))?;
+    if !metadata.is_dir() {
+        return Err(anyhow::anyhow!(
+            "output directory is not a directory: {}",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+fn encrypted_target(path: &Path, out_dir: Option<&Path>) -> Result<PathBuf> {
+    if let Some(dir) = out_dir {
+        let file_name = encrypted_path(path).file_name().ok_or_else(|| {
+            anyhow::anyhow!(
+                "unable to determine encrypted file name for {}",
+                path.display()
+            )
+        })?;
+        Ok(dir.join(file_name))
+    } else {
+        Ok(encrypted_path(path))
+    }
+}
+
+fn decrypted_target(path: &Path, out_dir: Option<&Path>) -> Result<PathBuf> {
+    if let Some(dir) = out_dir {
+        let file_name = decrypted_path(path).file_name().ok_or_else(|| {
+            anyhow::anyhow!(
+                "unable to determine decrypted file name for {}",
+                path.display()
+            )
+        })?;
+        Ok(dir.join(file_name))
+    } else {
+        Ok(decrypted_path(path))
+    }
 }
